@@ -111,6 +111,5 @@
     "@nx/angular:component": {
       "style": "css"
     }
-  },
-  "nxCloudId": "69b8c06b766f582ca24c1d6e"
+  }
 }

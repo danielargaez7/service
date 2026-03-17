@@ -87,9 +87,11 @@ app.use(
 const server = http.createServer(app);
 const wss = createWebSocketServer(server);
 
-server.listen(port, host, () => {
-  console.log(`[ ready ] http://${host}:${port}`);
-  console.log(`[ ws    ] WebSocket server attached`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(port, host, () => {
+    console.log(`[ ready ] http://${host}:${port}`);
+    console.log(`[ ws    ] WebSocket server attached`);
+  });
+}
 
 export { app, server, wss };
