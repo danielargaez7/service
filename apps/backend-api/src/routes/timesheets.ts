@@ -8,9 +8,13 @@ import {
 } from '@servicecore/shared-models';
 import { requireRole } from '../middleware/rbac.middleware';
 import { KimaiService } from '../services/kimai.service';
+import { AnomalyService } from '../services/anomaly.service';
+import { NotificationService } from '../services/notification.service';
 
 export const timesheetsRouter = Router();
 const kimaiService = new KimaiService();
+const anomalyService = new AnomalyService();
+const notificationService = new NotificationService();
 const KIMAI_INTEGRATION_ENABLED =
   process.env.KIMAI_INTEGRATION_ENABLED === 'true';
 
@@ -211,6 +215,10 @@ timesheetsRouter.post('/punch', async (req: Request, res: Response) => {
   }
 
   const punch = parsed.data as ClockPunchDto;
+  const anomaly = await anomalyService.scorePunch({
+    ...punch,
+    employeeId: req.user.sub,
+  });
 
   if (KIMAI_INTEGRATION_ENABLED) {
     try {
@@ -250,12 +258,19 @@ timesheetsRouter.post('/punch', async (req: Request, res: Response) => {
     approvedById: null,
     approvedAt: null,
     flagReason: null,
-    notes: null,
+    notes:
+      anomaly.flags.length > 0
+        ? `anomaly:${anomaly.flags.join(',')}`
+        : null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
-  res.status(201).json({ data: newEntry, source: 'stub' });
+  res.status(201).json({
+    data: newEntry,
+    anomaly,
+    source: 'stub',
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -264,14 +279,21 @@ timesheetsRouter.post('/punch', async (req: Request, res: Response) => {
 timesheetsRouter.patch(
   '/:id/approve',
   requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'SYSTEM_ADMIN'),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
   const { id } = req.params;
+
+  const notify = await notificationService.sendEmail(
+    'driver@servicecore.com',
+    `Timesheet ${id} approved`,
+    `Timesheet ${id} was approved by ${req.user?.sub ?? 'manager-001'}.`
+  );
 
   res.json({
     id,
     status: TimesheetStatus.APPROVED,
     approvedById: req.user?.sub ?? 'manager-001',
     approvedAt: new Date(),
+    notification: notify,
     message: `Timesheet ${id} approved`,
   });
   }
@@ -283,7 +305,7 @@ timesheetsRouter.patch(
 timesheetsRouter.patch(
   '/:id/reject',
   requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'SYSTEM_ADMIN'),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { id } = req.params;
     const parsed = rejectSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -298,11 +320,17 @@ timesheetsRouter.patch(
     }
 
     const { reason } = parsed.data;
+    const notify = await notificationService.sendEmail(
+      'driver@servicecore.com',
+      `Timesheet ${id} rejected`,
+      `Timesheet ${id} was rejected for reason: ${reason}`
+    );
 
     res.json({
       id,
       status: TimesheetStatus.REJECTED,
       flagReason: reason,
+      notification: notify,
       message: `Timesheet ${id} rejected`,
     });
   }

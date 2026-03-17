@@ -1,0 +1,8 @@
+{
+  "name": "timetrex-mock",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": "services/timetrex-mock",
+  "sourceRoot": "services/timetrex-mock",
+  "targets": {}
+}

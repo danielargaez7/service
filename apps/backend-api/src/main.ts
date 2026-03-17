@@ -12,6 +12,11 @@ import { analyticsRouter } from './routes/analytics';
 import { aiRouter } from './routes/ai';
 import { scheduleRouter } from './routes/schedule';
 import { authenticate, requireApiKeyIfConfigured } from './middleware/auth.middleware';
+import {
+  aiRateLimit,
+  authLoginRateLimit,
+  authRefreshRateLimit,
+} from './middleware/rate-limit.middleware';
 import { createWebSocketServer } from './websocket/server';
 
 const host = process.env.HOST ?? 'localhost';
@@ -40,6 +45,8 @@ app.get('/api/health', (_req, res) => {
 // ---------------------------------------------------------------------------
 // Public auth routes
 // ---------------------------------------------------------------------------
+app.use('/api/auth/login', authLoginRateLimit);
+app.use('/api/auth/refresh', authRefreshRateLimit);
 app.use('/api/auth', authRouter);
 
 // ---------------------------------------------------------------------------
@@ -50,7 +57,7 @@ app.use('/api/employees', requireApiKeyIfConfigured, authenticate, employeesRout
 app.use('/api/payroll', requireApiKeyIfConfigured, authenticate, payrollRouter);
 app.use('/api/compliance', requireApiKeyIfConfigured, authenticate, complianceRouter);
 app.use('/api/analytics', requireApiKeyIfConfigured, authenticate, analyticsRouter);
-app.use('/api/ai', requireApiKeyIfConfigured, authenticate, aiRouter);
+app.use('/api/ai', requireApiKeyIfConfigured, authenticate, aiRateLimit, aiRouter);
 app.use('/api/schedule', requireApiKeyIfConfigured, authenticate, scheduleRouter);
 
 // ---------------------------------------------------------------------------

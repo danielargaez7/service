@@ -131,3 +131,10 @@ Current login route is a demo/stub implementation for local dev:
 - [x] watcher stability updates for local serve
 - [ ] replace remaining starter/scaffold docs in repo
 - [ ] broaden e2e coverage for manager + driver critical paths
+
+## Demo Runbook
+
+- Standard walkthrough and recovery steps live in `docs/DEMO_RUNBOOK.md`.
+- Recommended demo startup:
+  - `npm run dev:demo`
+  - `npm run demo:preflight`

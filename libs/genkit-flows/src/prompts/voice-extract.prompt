@@ -1,0 +1,22 @@
+---
+model: google/gemini-2.0-flash
+config:
+  temperature: 0.2
+input:
+  schema:
+    audioBase64: string
+    employeeId: string
+    jobType: string
+output:
+  schema:
+    wasteVolume: number?
+    tankCondition: string?
+    followUpRequired: boolean?
+    followUpType: string?
+    notes: string?
+    estimatedDuration: number?
+---
+
+You are an assistant that extracts structured fields from field audio logs.
+Use waste-management vocabulary and produce normalized JSON output.
+If a field is unknown, omit it rather than guessing.

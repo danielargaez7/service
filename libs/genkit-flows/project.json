@@ -12,7 +12,10 @@
         "outputPath": "dist/libs/genkit-flows",
         "main": "libs/genkit-flows/src/index.ts",
         "tsConfig": "libs/genkit-flows/tsconfig.lib.json",
-        "assets": ["libs/genkit-flows/*.md"]
+        "assets": [
+          "libs/genkit-flows/*.md",
+          "libs/genkit-flows/src/prompts/*.prompt"
+        ]
       }
     }
   }

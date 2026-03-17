@@ -10,7 +10,8 @@ services:
       APP_ENV: prod
       APP_SECRET: ${KIMAI_APP_SECRET:-change-me}
       DATABASE_URL: mysql://kimai:kimai@kimai-db:3306/kimai
-      TRUSTED_HOSTS: localhost,127.0.0.1,kimai
+      TRUSTED_HOSTS: ^(localhost|127\.0\.0\.1|kimai)$
+      APP_TRUSTED_HOSTS: ^(localhost|127\.0\.0\.1|kimai)$
       ADMINMAIL: admin@servicecore.local
       ADMINPASS: ${KIMAI_ADMIN_PASSWORD:-admin123}
     depends_on:
@@ -41,19 +42,11 @@ services:
       - timetrex_mysql_data:/var/lib/mysql
 
   timetrex:
-    image: timetrex/timetrex:latest
+    build:
+      context: ./services/timetrex-mock
     container_name: servicecore-timetrex
     ports:
       - "8002:80"
-    environment:
-      DB_TYPE: mysql
-      DB_HOST: timetrex-db
-      DB_PORT: 3306
-      DB_NAME: timetrex
-      DB_USER: timetrex
-      DB_PASS: timetrex
-    depends_on:
-      - timetrex-db
 
   postgres:
     image: pgvector/pgvector:pg16

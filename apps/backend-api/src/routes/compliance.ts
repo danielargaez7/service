@@ -4,8 +4,10 @@ import {
   Certification,
   CertificationType,
 } from '@servicecore/shared-models';
+import { ComplianceService } from '../services/compliance.service';
 
 export const complianceRouter = Router();
+const complianceService = new ComplianceService();
 
 // ---------------------------------------------------------------------------
 // Stub data
@@ -79,11 +81,57 @@ const stubCerts: Certification[] = [
 // ---------------------------------------------------------------------------
 // GET /risks — all open compliance risks sorted by severity
 // ---------------------------------------------------------------------------
-const severityOrder: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-
 complianceRouter.get('/risks', (_req: Request, res: Response) => {
-  const sorted = [...stubRisks].sort(
-    (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
+  const hosRisk = complianceService.buildHOSRiskIfNeeded(
+    'emp-001',
+    'Marcus Rivera',
+    [
+      {
+        startTime: new Date('2026-03-16T06:00:00Z'),
+        endTime: new Date('2026-03-16T12:30:00Z'),
+        type: 'DRIVING',
+      },
+      {
+        startTime: new Date('2026-03-16T12:30:00Z'),
+        endTime: new Date('2026-03-16T14:00:00Z'),
+        type: 'ON_DUTY',
+      },
+    ],
+    [
+      {
+        startTime: new Date('2026-03-10T06:00:00Z'),
+        endTime: new Date('2026-03-10T18:00:00Z'),
+        type: 'ON_DUTY',
+      },
+      {
+        startTime: new Date('2026-03-11T06:00:00Z'),
+        endTime: new Date('2026-03-11T18:00:00Z'),
+        type: 'ON_DUTY',
+      },
+      {
+        startTime: new Date('2026-03-12T06:00:00Z'),
+        endTime: new Date('2026-03-12T18:00:00Z'),
+        type: 'ON_DUTY',
+      },
+      {
+        startTime: new Date('2026-03-13T06:00:00Z'),
+        endTime: new Date('2026-03-13T18:00:00Z'),
+        type: 'ON_DUTY',
+      },
+      {
+        startTime: new Date('2026-03-14T06:00:00Z'),
+        endTime: new Date('2026-03-14T18:00:00Z'),
+        type: 'ON_DUTY',
+      },
+      {
+        startTime: new Date('2026-03-15T06:00:00Z'),
+        endTime: new Date('2026-03-15T16:00:00Z'),
+        type: 'ON_DUTY',
+      },
+    ]
+  );
+  const sorted = complianceService.sortRisksBySeverity(
+    hosRisk ? [...stubRisks, hosRisk] : stubRisks
   );
   res.json({ data: sorted, total: sorted.length });
 });
@@ -112,12 +160,7 @@ complianceRouter.get(
   '/certifications/expiring',
   (req: Request, res: Response) => {
     const days = parseInt((req.query.days as string) ?? '30', 10);
-    const now = new Date();
-    const cutoff = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-
-    const expiring = stubCerts.filter(
-      (c) => c.expiryDate <= cutoff && c.expiryDate >= now
-    );
+    const expiring = complianceService.getExpiringCertifications(stubCerts, days);
 
     res.json({ data: expiring, total: expiring.length, withinDays: days });
   }

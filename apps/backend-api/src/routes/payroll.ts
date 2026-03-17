@@ -7,12 +7,17 @@ import {
   JobType,
   PayRate,
   TimeEntry,
+  EmployeeClass,
 } from '@servicecore/shared-models';
 import { requireRole } from '../middleware/rbac.middleware';
 import { TimeTrexService } from '../services/timetrex.service';
+import { OvertimeService } from '../services/overtime.service';
+import { AnomalyService } from '../services/anomaly.service';
 
 export const payrollRouter = Router();
 const timetrexService = new TimeTrexService();
+const overtimeService = new OvertimeService();
+const anomalyService = new AnomalyService();
 const TIMETREX_INTEGRATION_ENABLED =
   process.env.TIMETREX_INTEGRATION_ENABLED === 'true';
 
@@ -140,13 +145,25 @@ payrollRouter.get('/preview', async (req: Request, res: Response) => {
     }
   }
 
+  const calculatedOT = overtimeService.calculateForEntries(
+    'emp-002',
+    [stubEntry],
+    [stubPayRate],
+    {
+      employeeClass: EmployeeClass.CDL_B,
+      stateCode: 'CA',
+      isMotorCarrierExempt: false,
+    }
+  );
+  const anomalyScores = await anomalyService.scoreTimesheetEntries([stubEntry]);
+
   const preview: PayrollPreview = {
     employeeId: 'emp-002',
     employeeName: 'Carlos Rivera',
     periodStart: periodStart ? new Date(periodStart) : new Date('2026-03-09'),
     periodEnd: periodEnd ? new Date(periodEnd) : new Date('2026-03-15'),
     entries: [stubEntry],
-    overtime: stubOT,
+    overtime: calculatedOT,
     payRates: [stubPayRate],
   };
 
@@ -156,6 +173,7 @@ payrollRouter.get('/preview', async (req: Request, res: Response) => {
       start: (periodStart ?? '2026-03-09'),
       end: (periodEnd ?? '2026-03-15'),
     },
+    anomalyScores,
     source: 'stub',
   });
 });
