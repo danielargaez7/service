@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy, AfterViewInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
+import * as L from 'leaflet';
 
 interface KpiCard {
   label: string;
@@ -11,10 +12,28 @@ interface KpiCard {
   color: string;
 }
 
+interface DriverMarker {
+  name: string;
+  lat: number;
+  lng: number;
+  status: 'active' | 'ot-risk';
+  clockedIn: string;
+  jobType: string;
+  hours: number;
+}
+
+interface OtAlert {
+  name: string;
+  hours: number;
+  jobType: string;
+  severity: 'amber' | 'orange' | 'red';
+}
+
 @Component({
   standalone: true,
   imports: [CommonModule, CardModule],
   selector: 'app-dashboard',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="dashboard">
       <div class="dashboard-header">
@@ -43,7 +62,7 @@ interface KpiCard {
 
       <!-- Content Grid -->
       <div class="content-grid">
-        <!-- Live Fleet Map Placeholder -->
+        <!-- Live Fleet Map -->
         <div class="panel panel-map">
           <div class="panel-header">
             <h3><i class="pi pi-map"></i> Live Fleet Map</h3>
@@ -52,23 +71,33 @@ interface KpiCard {
               LIVE
             </span>
           </div>
-          <div class="panel-body placeholder-area">
-            <i class="pi pi-map-marker placeholder-icon"></i>
-            <p>Live Fleet Map will go here</p>
-            <span class="placeholder-sub">Real-time GPS tracking of all active field workers</span>
+          <div class="panel-body map-body">
+            <div id="fleet-map" class="fleet-map"></div>
           </div>
         </div>
 
-        <!-- OT Alert Bar Placeholder -->
+        <!-- OT Alert Bar -->
         <div class="panel panel-alerts">
           <div class="panel-header">
             <h3><i class="pi pi-exclamation-triangle"></i> Overtime Alerts</h3>
-            <span class="alert-count">3 active</span>
+            <span class="alert-count">{{ otAlerts.length }} active</span>
           </div>
-          <div class="panel-body placeholder-area">
-            <i class="pi pi-bell placeholder-icon"></i>
-            <p>OT Alert Bar will go here</p>
-            <span class="placeholder-sub">Workers approaching or exceeding overtime thresholds</span>
+          <div class="panel-body">
+            <div class="ot-alert-list">
+              @for (alert of otAlerts; track alert.name) {
+                <div class="ot-alert-item" [class]="'severity-' + alert.severity">
+                  <div class="ot-alert-indicator"></div>
+                  <div class="ot-alert-info">
+                    <span class="ot-alert-name">{{ alert.name }}</span>
+                    <span class="ot-alert-job">{{ alert.jobType }}</span>
+                  </div>
+                  <div class="ot-alert-hours">
+                    <span class="ot-hours-value">{{ alert.hours }}h</span>
+                    <span class="ot-hours-label">this week</span>
+                  </div>
+                </div>
+              }
+            </div>
           </div>
         </div>
 
@@ -130,7 +159,7 @@ interface KpiCard {
       margin: 0;
     }
 
-    /* ── KPI Strip ── */
+    /* -- KPI Strip -- */
     .kpi-strip {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -218,10 +247,10 @@ interface KpiCard {
       color: #dc2626;
     }
 
-    /* ── Content Grid ── */
+    /* -- Content Grid -- */
     .content-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 3fr 2fr;
       grid-template-rows: auto auto;
       gap: 20px;
     }
@@ -236,7 +265,7 @@ interface KpiCard {
     .panel-map {
       grid-column: 1 / 2;
       grid-row: 1 / 3;
-      min-height: 400px;
+      min-height: 520px;
     }
 
     .panel-alerts {
@@ -308,34 +337,94 @@ interface KpiCard {
       padding: 20px;
     }
 
-    .placeholder-area {
+    .map-body {
+      padding: 0;
+    }
+
+    /* -- Fleet Map -- */
+    .fleet-map {
+      width: 100%;
+      height: 460px;
+    }
+
+    /* -- OT Alert List -- */
+    .ot-alert-list {
       display: flex;
       flex-direction: column;
+      gap: 10px;
+    }
+
+    .ot-alert-item {
+      display: flex;
       align-items: center;
-      justify-content: center;
-      min-height: 200px;
-      text-align: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #fafbfc;
+      border: 1px solid var(--sc-border, #e2e6ed);
+      transition: box-shadow 0.15s ease;
     }
 
-    .placeholder-icon {
-      font-size: 3rem;
-      color: var(--sc-border, #e2e6ed);
-      margin-bottom: 12px;
+    .ot-alert-item:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
-    .placeholder-area p {
-      font-size: 1rem;
-      font-weight: 600;
+    .ot-alert-indicator {
+      width: 6px;
+      height: 36px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .severity-amber .ot-alert-indicator { background: #f59e0b; }
+    .severity-orange .ot-alert-indicator { background: #ea580c; }
+    .severity-red .ot-alert-indicator { background: #dc2626; }
+
+    .severity-amber { border-left: 3px solid #f59e0b; }
+    .severity-orange { border-left: 3px solid #ea580c; }
+    .severity-red { border-left: 3px solid #dc2626; }
+
+    .ot-alert-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ot-alert-name {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--sc-text-primary, #1e293b);
+    }
+
+    .ot-alert-job {
+      font-size: 0.75rem;
       color: var(--sc-text-secondary, #64748b);
-      margin: 0 0 4px;
     }
 
-    .placeholder-sub {
-      font-size: 0.8rem;
-      color: #94a3b8;
+    .ot-alert-hours {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
     }
 
-    /* ── Stats Panel ── */
+    .ot-hours-value {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--sc-text-primary, #1e293b);
+    }
+
+    .severity-amber .ot-hours-value { color: #f59e0b; }
+    .severity-orange .ot-hours-value { color: #ea580c; }
+    .severity-red .ot-hours-value { color: #dc2626; }
+
+    .ot-hours-label {
+      font-size: 0.65rem;
+      color: var(--sc-text-secondary, #64748b);
+    }
+
+    /* -- Stats Panel -- */
     .stat-row {
       display: flex;
       align-items: center;
@@ -367,7 +456,7 @@ interface KpiCard {
       color: #dc2626;
     }
 
-    /* ── Responsive ── */
+    /* -- Responsive -- */
     @media (max-width: 1024px) {
       .kpi-strip {
         grid-template-columns: repeat(2, 1fr);
@@ -380,13 +469,17 @@ interface KpiCard {
       .panel-map {
         grid-column: 1;
         grid-row: auto;
-        min-height: 300px;
+        min-height: 350px;
       }
 
       .panel-alerts,
       .panel-stats {
         grid-column: 1;
         grid-row: auto;
+      }
+
+      .fleet-map {
+        height: 320px;
       }
     }
 
@@ -401,7 +494,9 @@ interface KpiCard {
     }
   `],
 })
-export class DashboardPage {
+export class DashboardPage implements AfterViewInit, OnDestroy {
+  private map: L.Map | null = null;
+
   kpiCards: KpiCard[] = [
     {
       label: 'Total Active Workers',
@@ -436,4 +531,96 @@ export class DashboardPage {
       color: '#ef4444',
     },
   ];
+
+  drivers: DriverMarker[] = [
+    { name: 'Marcus Johnson', lat: 39.7592, lng: -104.9703, status: 'active', clockedIn: '6:02 AM', jobType: 'Residential Pickup', hours: 32.5 },
+    { name: 'Terrell Williams', lat: 39.7285, lng: -105.0153, status: 'active', clockedIn: '5:48 AM', jobType: 'Commercial Dumpster', hours: 34.0 },
+    { name: 'Jake Hernandez', lat: 39.7450, lng: -104.9550, status: 'ot-risk', clockedIn: '5:30 AM', jobType: 'Roll-Off Delivery', hours: 38.5 },
+    { name: 'DeShawn Carter', lat: 39.7100, lng: -104.9800, status: 'active', clockedIn: '6:15 AM', jobType: 'Residential Pickup', hours: 29.0 },
+    { name: 'Miguel Rodriguez', lat: 39.7700, lng: -105.0300, status: 'ot-risk', clockedIn: '5:15 AM', jobType: 'Recycling Route', hours: 39.5 },
+    { name: 'Chris Patterson', lat: 39.7350, lng: -104.9400, status: 'active', clockedIn: '6:30 AM', jobType: 'Bulk Waste', hours: 28.0 },
+    { name: 'Andre Davis', lat: 39.7550, lng: -105.0050, status: 'active', clockedIn: '6:00 AM', jobType: 'Commercial Dumpster', hours: 33.5 },
+    { name: 'Tony Ramirez', lat: 39.7200, lng: -105.0500, status: 'ot-risk', clockedIn: '5:45 AM', jobType: 'Roll-Off Pickup', hours: 35.5 },
+    { name: 'Kevin Brooks', lat: 39.7650, lng: -104.9250, status: 'active', clockedIn: '6:10 AM', jobType: 'Residential Pickup', hours: 31.0 },
+    { name: 'Luis Morales', lat: 39.7000, lng: -105.0100, status: 'active', clockedIn: '6:20 AM', jobType: 'Recycling Route', hours: 27.5 },
+  ];
+
+  otAlerts: OtAlert[] = [
+    { name: 'Miguel Rodriguez', hours: 39.5, jobType: 'Recycling Route', severity: 'red' },
+    { name: 'Jake Hernandez', hours: 38.5, jobType: 'Roll-Off Delivery', severity: 'orange' },
+    { name: 'Tony Ramirez', hours: 35.5, jobType: 'Roll-Off Pickup', severity: 'amber' },
+    { name: 'Terrell Williams', hours: 34.0, jobType: 'Commercial Dumpster', severity: 'amber' },
+    { name: 'Andre Davis', hours: 33.5, jobType: 'Commercial Dumpster', severity: 'amber' },
+  ];
+
+  constructor(private ngZone: NgZone) {}
+
+  ngAfterViewInit(): void {
+    this.ngZone.runOutsideAngular(() => {
+      this.initMap();
+    });
+  }
+
+  ngOnDestroy(): void {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+  }
+
+  private initMap(): void {
+    this.map = L.map('fleet-map', {
+      center: [39.7392, -104.9903],
+      zoom: 11,
+      zoomControl: true,
+      attributionControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(this.map);
+
+    for (const driver of this.drivers) {
+      const color = driver.status === 'ot-risk' ? '#dc2626' : '#059669';
+      const markerIcon = L.divIcon({
+        className: 'fleet-marker',
+        html: `
+          <div style="
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: ${color};
+            border: 3px solid #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+          "></div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
+
+      const statusLabel = driver.status === 'ot-risk' ? 'Approaching OT' : 'Active';
+
+      L.marker([driver.lat, driver.lng], { icon: markerIcon })
+        .addTo(this.map!)
+        .bindPopup(`
+          <div style="font-family: system-ui, sans-serif; min-width: 180px;">
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 6px;">${driver.name}</div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <span style="
+                display: inline-block;
+                width: 8px; height: 8px;
+                border-radius: 50%;
+                background: ${color};
+              "></span>
+              <span style="font-size: 12px; color: #64748b;">${statusLabel} &middot; Clocked in ${driver.clockedIn}</span>
+            </div>
+            <div style="font-size: 12px; color: #475569; margin-bottom: 2px;">${driver.jobType}</div>
+            <div style="font-size: 12px; font-weight: 600; color: ${driver.hours >= 38 ? '#dc2626' : driver.hours >= 35 ? '#ea580c' : '#059669'};">
+              ${driver.hours}h this week
+            </div>
+          </div>
+        `);
+    }
+  }
 }

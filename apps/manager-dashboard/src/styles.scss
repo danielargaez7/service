@@ -1,7 +1,8 @@
-/* ── PrimeNG Theme ── */
-@use 'primeng/resources/themes/lara-light-blue/theme.css';
-@use 'primeng/resources/primeng.css';
-@use 'primeicons/primeicons.css';
+/* ── PrimeIcons ── */
+@import 'primeicons/primeicons.css';
+
+/* ── Leaflet ── */
+@import 'leaflet/dist/leaflet.css';
 
 /* ── ServiceCore Brand Variables ── */
 :root {
