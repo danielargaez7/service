@@ -1,0 +1,19 @@
+{
+  "name": "hos-engine",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/hos-engine/src",
+  "projectType": "library",
+  "tags": ["scope:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/hos-engine",
+        "main": "libs/hos-engine/src/index.ts",
+        "tsConfig": "libs/hos-engine/tsconfig.lib.json",
+        "assets": ["libs/hos-engine/*.md"]
+      }
+    }
+  }
+}

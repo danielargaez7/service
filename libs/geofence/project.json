@@ -1,0 +1,19 @@
+{
+  "name": "geofence",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/geofence/src",
+  "projectType": "library",
+  "tags": ["scope:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/geofence",
+        "main": "libs/geofence/src/index.ts",
+        "tsConfig": "libs/geofence/tsconfig.lib.json",
+        "assets": ["libs/geofence/*.md"]
+      }
+    }
+  }
+}

@@ -15,14 +15,12 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@org/api/products": ["libs/api/products/src/index.ts"],
-      "@org/models": ["libs/shared/models/src/index.ts"],
-      "@org/shop/data": ["libs/shop/data/src/index.ts"],
-      "@org/shop/feature-product-detail": [
-        "libs/shop/feature-product-detail/src/index.ts"
-      ],
-      "@org/shop/feature-products": ["libs/shop/feature-products/src/index.ts"],
-      "@org/shop/shared-ui": ["libs/shop/shared-ui/src/index.ts"]
+      "@servicecore/shared-models": ["libs/shared-models/src/index.ts"],
+      "@servicecore/api-client": ["libs/api-client/src/index.ts"],
+      "@servicecore/overtime-engine": ["libs/overtime-engine/src/index.ts"],
+      "@servicecore/geofence": ["libs/geofence/src/index.ts"],
+      "@servicecore/hos-engine": ["libs/hos-engine/src/index.ts"],
+      "@servicecore/genkit-flows": ["libs/genkit-flows/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

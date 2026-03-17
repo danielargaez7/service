@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  DRIVER
+  DISPATCHER
+  ROUTE_MANAGER
+  HR_ADMIN
+  PAYROLL_ADMIN
+  EXECUTIVE
+  SYSTEM_ADMIN
+}
+
+enum EmployeeClass {
+  CDL_A
+  CDL_B
+  NON_CDL
+  OFFICE
+  YARD
+  TEMP_SEASONAL
+}
+
+enum JobType {
+  RESIDENTIAL_SANITATION
+  ROLL_OFF_DELIVERY
+  ROLL_OFF_PICKUP
+  SEPTIC_PUMP
+  GREASE_TRAP
+  EMERGENCY_SEPTIC
+  YARD_MAINTENANCE
+  OFFICE
+  TRAINING
+  TRAVEL
+}
+
+enum TimesheetStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  FLAGGED
+  REJECTED
+  EXPORTED
+}
+
+enum CertificationType {
+  CDL_CLASS_A
+  CDL_CLASS_B
+  DOT_PHYSICAL
+  HAZWOPER_8HR
+  HAZWOPER_40HR
+  DRUG_TEST
+  BACKGROUND_CHECK
+  TANKER_ENDORSEMENT
+  HAZMAT_ENDORSEMENT
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Employee {
+  id              String          @id @default(cuid())
+  kimaiUserId     Int             @unique
+  timetrexId      Int?            @unique
+  firstName       String
+  lastName        String
+  email           String          @unique
+  phone           String?
+  passwordHash    String
+  role            Role            @default(DRIVER)
+  employeeClass   EmployeeClass
+  payRates        PayRate[]
+  certifications  Certification[]
+  timesheets      TimeEntry[]
+  schedules       Schedule[]
+  managerId       String?
+  manager         Employee?       @relation("ManagerReports", fields: [managerId], references: [id])
+  reports         Employee[]      @relation("ManagerReports")
+  cbAgreementId   String?
+  stateCode       String
+  isMotorCarrier  Boolean         @default(false)
+  mfaSecret       String?
+  mfaEnabled      Boolean         @default(false)
+  refreshToken    String?
+  deletedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([role])
+  @@index([managerId])
+  @@index([deletedAt])
+}
+
+model TimeEntry {
+  id               String          @id @default(cuid())
+  kimaiTimesheetId Int             @unique
+  employeeId       String
+  employee         Employee        @relation(fields: [employeeId], references: [id])
+  clockIn          DateTime
+  clockOut         DateTime?
+  jobType          JobType
+  routeId          String?
+  gpsClockIn       Json?
+  gpsClockOut      Json?
+  photoUrl         String?
+  hoursWorked      Decimal?
+  regularHours     Decimal?
+  overtimeHours    Decimal?
+  doubleTimeHours  Decimal?
+  payRateApplied   Decimal?
+  anomalyScore     Float?
+  anomalyFlags     String[]
+  approved         Boolean         @default(false)
+  approvedBy       String?
+  approvedAt       DateTime?
+  status           TimesheetStatus @default(PENDING)
+  deletedAt        DateTime?
+  createdAt        DateTime        @default(now())
+
+  @@index([employeeId])
+  @@index([clockIn])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model Certification {
+  id          String            @id @default(cuid())
+  employeeId  String
+  employee    Employee          @relation(fields: [employeeId], references: [id])
+  type        CertificationType
+  issueDate   DateTime
+  expiryDate  DateTime
+  documentUrl String?
+  alertSent30 Boolean           @default(false)
+  alertSent7  Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+
+  @@index([employeeId])
+  @@index([expiryDate])
+}
+
+model PayRate {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  jobType       JobType
+  ratePerHour   Decimal
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
+  @@index([employeeId])
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        DateTime @db.Date
+  startTime   DateTime
+  endTime     DateTime
+  routeId     String?
+  jobType     JobType
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([date])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  resource   String
+  resourceId String
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+}

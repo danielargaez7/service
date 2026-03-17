@@ -1,0 +1,19 @@
+{
+  "name": "genkit-flows",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/genkit-flows/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/genkit-flows",
+        "main": "libs/genkit-flows/src/index.ts",
+        "tsConfig": "libs/genkit-flows/tsconfig.lib.json",
+        "assets": ["libs/genkit-flows/*.md"]
+      }
+    }
+  }
+}

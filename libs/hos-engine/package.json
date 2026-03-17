@@ -1,0 +1,12 @@
+{
+  "name": "@org/hos-engine",
+  "version": "0.0.1",
+  "private": true,
+  "type": "commonjs",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "dependencies": {
+    "@org/geofence": "0.0.1",
+    "tslib": "^2.3.0"
+  }
+}
