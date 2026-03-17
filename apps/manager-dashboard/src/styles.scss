@@ -1,1 +1,76 @@
-/* You can add global styles to this file, and also import other style files */
+/* ── PrimeNG Theme ── */
+@use 'primeng/resources/themes/lara-light-blue/theme.css';
+@use 'primeng/resources/primeng.css';
+@use 'primeicons/primeicons.css';
+
+/* ── ServiceCore Brand Variables ── */
+:root {
+  --sc-accent: #4f8cff;
+  --sc-accent-dark: #3b6fdb;
+  --sc-accent-light: #eef4ff;
+  --sc-sidebar-bg: #1a1f36;
+  --sc-bg-primary: #f4f6f9;
+  --sc-bg-white: #ffffff;
+  --sc-text-primary: #1e293b;
+  --sc-text-secondary: #64748b;
+  --sc-border: #e2e6ed;
+  --sc-success: #10b981;
+  --sc-warning: #f59e0b;
+  --sc-danger: #ef4444;
+}
+
+/* ── Reset & Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  color: var(--sc-text-primary);
+  background: var(--sc-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── PrimeNG Overrides ── */
+.p-button {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+.p-inputtext {
+  border-radius: 8px !important;
+}
+
+.p-card {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  border: 1px solid var(--sc-border) !important;
+}
+
+/* ── Utility Classes ── */
+.w-full {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}

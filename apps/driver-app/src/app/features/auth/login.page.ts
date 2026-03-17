@@ -1,0 +1,193 @@
+import { Component, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import {
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonItem,
+  IonInput,
+  IonList,
+  IonButton,
+  IonToast,
+  IonLabel,
+  IonIcon,
+} from '@ionic/angular/standalone';
+import { AuthService } from '../../core/auth.service';
+
+@Component({
+  standalone: true,
+  selector: 'app-login',
+  imports: [
+    CommonModule,
+    FormsModule,
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonItem,
+    IonInput,
+    IonList,
+    IonButton,
+    IonToast,
+    IonLabel,
+    IonIcon,
+  ],
+  template: `
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>ServiceCore</ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <div class="login-container">
+        <div class="branding">
+          <h1 class="brand-title">ServiceCore</h1>
+          <p class="brand-subtitle">Driver Time Tracking</p>
+        </div>
+
+        <ion-list lines="full" class="login-form">
+          <ion-item>
+            <ion-input
+              label="Email"
+              labelPlacement="floating"
+              type="email"
+              autocomplete="email"
+              [value]="email()"
+              (ionInput)="email.set($any($event).detail.value ?? '')"
+            ></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-input
+              label="Password"
+              labelPlacement="floating"
+              type="password"
+              [value]="password()"
+              (ionInput)="password.set($any($event).detail.value ?? '')"
+            ></ion-input>
+          </ion-item>
+        </ion-list>
+
+        <ion-button
+          expand="block"
+          size="large"
+          class="login-button"
+          [disabled]="loading()"
+          (click)="onLogin()"
+        >
+          @if (loading()) {
+            Signing In...
+          } @else {
+            Sign In
+          }
+        </ion-button>
+      </div>
+
+      <ion-toast
+        [isOpen]="showError()"
+        [message]="errorMessage()"
+        [duration]="3000"
+        color="danger"
+        position="top"
+        (didDismiss)="showError.set(false)"
+      ></ion-toast>
+    </ion-content>
+  `,
+  styles: [
+    `
+      ion-toolbar {
+        --background: var(--sc-primary, #1565c0);
+        --color: #fff;
+      }
+
+      .login-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 80%;
+        padding: 24px 16px;
+      }
+
+      .branding {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .brand-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--sc-primary, #1565c0);
+        margin: 0 0 4px;
+      }
+
+      .brand-subtitle {
+        font-size: 1rem;
+        color: var(--sc-text-secondary, #757575);
+        margin: 0;
+      }
+
+      .login-form {
+        width: 100%;
+        max-width: 400px;
+        margin-bottom: 24px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .login-button {
+        width: 100%;
+        max-width: 400px;
+        --border-radius: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+    `,
+  ],
+})
+export class LoginPage {
+  readonly email = signal('');
+  readonly password = signal('');
+  readonly loading = signal(false);
+  readonly showError = signal(false);
+  readonly errorMessage = signal('');
+
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  async onLogin(): Promise<void> {
+    if (this.loading()) return;
+
+    const email = this.email().trim();
+    const password = this.password();
+
+    if (!email || !password) {
+      this.errorMessage.set('Please enter your email and password.');
+      this.showError.set(true);
+      return;
+    }
+
+    this.loading.set(true);
+
+    try {
+      await this.authService.login(email, password);
+      this.router.navigate(['/tabs']);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Login failed. Please check your credentials.';
+      this.errorMessage.set(message);
+      this.showError.set(true);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+}

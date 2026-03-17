@@ -1,1 +1,42 @@
-/* You can add global styles to this file, and also import other style files */
+@import '@ionic/angular/css/core.css';
+@import '@ionic/angular/css/normalize.css';
+@import '@ionic/angular/css/structure.css';
+@import '@ionic/angular/css/typography.css';
+@import '@ionic/angular/css/padding.css';
+@import '@ionic/angular/css/float-elements.css';
+@import '@ionic/angular/css/text-alignment.css';
+@import '@ionic/angular/css/text-transformation.css';
+@import '@ionic/angular/css/flex-utils.css';
+@import '@ionic/angular/css/display.css';
+
+:root {
+  --sc-primary: #1a237e;
+  --sc-primary-light: #534bae;
+  --sc-accent: #ff6f00;
+  --sc-success: #2e7d32;
+  --sc-danger: #c62828;
+  --sc-warning: #f9a825;
+  --sc-bg: #fafafa;
+  --sc-surface: #ffffff;
+  --sc-text: #212121;
+  --sc-text-secondary: #757575;
+
+  --ion-color-primary: var(--sc-primary);
+  --ion-color-secondary: var(--sc-accent);
+  --ion-color-success: var(--sc-success);
+  --ion-color-danger: var(--sc-danger);
+  --ion-color-warning: var(--sc-warning);
+  --ion-background-color: var(--sc-bg);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+// Large tap targets for gloved hands
+ion-button {
+  --border-radius: 12px;
+  min-height: 48px;
+  font-weight: 600;
+}
