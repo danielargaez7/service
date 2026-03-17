@@ -5,7 +5,7 @@ import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { ToastModule } from 'primeng/toast';
@@ -34,7 +34,7 @@ interface WhatIfScenario {
     TableModule,
     ButtonModule,
     TagModule,
-    DropdownModule,
+    SelectModule,
     InputNumberModule,
     SelectButtonModule,
     ToastModule,
@@ -56,7 +56,7 @@ interface WhatIfScenario {
         <div class="section-title-row">
           <h3><i class="pi pi-file-check"></i> Pre-Payroll Audit Report</h3>
           <div class="section-actions">
-            <p-dropdown
+            <p-select
               [options]="payPeriodOptions"
               [(ngModel)]="selectedPayPeriod"
               optionLabel="label"

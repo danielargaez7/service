@@ -6,7 +6,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
 import { PanelModule } from 'primeng/panel';
-import { NgxEchartsDirective, provideEcharts } from 'ngx-echarts';
+import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
 
 interface QueryResult {
   sql: string;
@@ -31,7 +31,7 @@ interface QueryResult {
     PanelModule,
     NgxEchartsDirective,
   ],
-  providers: [provideEcharts({ echarts: () => import('echarts') })],
+  providers: [provideEchartsCore({ echarts: () => import('echarts') })],
   selector: 'app-nlq',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `

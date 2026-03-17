@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
@@ -57,7 +57,7 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
     TableModule,
     ButtonModule,
     TagModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
     DialogModule,
     TooltipModule,
@@ -97,7 +97,7 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
           />
         </span>
 
-        <p-dropdown
+        <p-select
           [options]="statusOptions"
           [ngModel]="statusFilter()"
           (ngModelChange)="statusFilter.set($event)"
@@ -513,10 +513,10 @@ export class TimesheetsPage {
 
   pendingCount = computed(() => this.entries().filter((e) => e.status === 'PENDING').length);
 
-  getStatusSeverity(status: TimesheetStatus): 'success' | 'warning' | 'danger' | 'info' | 'secondary' | undefined {
+  getStatusSeverity(status: TimesheetStatus): 'success' | 'warn' | 'danger' | 'info' | 'secondary' | undefined {
     switch (status) {
       case 'APPROVED': return 'success';
-      case 'PENDING': return 'warning';
+      case 'PENDING': return 'warn';
       case 'FLAGGED': return 'danger';
       case 'REJECTED': return 'secondary';
       case 'EXPORTED': return 'info';

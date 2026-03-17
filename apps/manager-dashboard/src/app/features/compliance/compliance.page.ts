@@ -6,7 +6,7 @@ import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 
 type RiskSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
 type RiskType = 'CDL_EXPIRED' | 'CDL_EXPIRING' | 'DOT_PHYSICAL_EXPIRED' | 'DOT_PHYSICAL_EXPIRING' | 'HOS_WARNING';
@@ -140,7 +140,7 @@ const MOCK_RISKS: ComplianceRisk[] = [
     TagModule,
     ButtonModule,
     BadgeModule,
-    DropdownModule,
+    SelectModule,
   ],
   selector: 'app-compliance',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -188,7 +188,7 @@ const MOCK_RISKS: ComplianceRisk[] = [
 
       <!-- Filter Bar -->
       <div class="filter-bar">
-        <p-dropdown
+        <p-select
           [options]="riskTypeOptions"
           [ngModel]="riskTypeFilter()"
           (ngModelChange)="riskTypeFilter.set($event)"
@@ -196,7 +196,7 @@ const MOCK_RISKS: ComplianceRisk[] = [
           [showClear]="true"
           styleClass="filter-dropdown"
         />
-        <p-dropdown
+        <p-select
           [options]="severityOptions"
           [ngModel]="severityFilter()"
           (ngModelChange)="severityFilter.set($event)"
@@ -510,10 +510,10 @@ export class CompliancePage {
     }
   }
 
-  getSeveritySeverity(severity: RiskSeverity): 'danger' | 'warning' | 'success' {
+  getSeveritySeverity(severity: RiskSeverity): 'danger' | 'warn' | 'success' {
     switch (severity) {
       case 'HIGH': return 'danger';
-      case 'MEDIUM': return 'warning';
+      case 'MEDIUM': return 'warn';
       case 'LOW': return 'success';
     }
   }

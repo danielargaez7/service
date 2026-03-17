@@ -15,24 +15,80 @@ const REFRESH_TOKEN_TTL = '7d';
 
 export const authRouter = Router();
 
-// Stub employee returned on login
-const stubEmployee: Employee = {
-  id: 'emp-001',
-  kimaiUserId: null,
-  timetrexId: null,
-  firstName: 'Jane',
-  lastName: 'Foreman',
-  email: 'jane@servicecore.io',
-  phone: '555-0100',
-  role: Role.ROUTE_MANAGER,
-  employeeClass: EmployeeClass.CDL_A,
-  stateCode: 'CA',
-  isMotorCarrier: true,
-  cbAgreementId: null,
-  managerId: null,
-  deletedAt: null,
-  createdAt: new Date('2024-01-15'),
-  updatedAt: new Date('2025-06-01'),
+// Demo accounts — use these credentials to log in
+const DEMO_ACCOUNTS: Record<string, Employee> = {
+  'admin@servicecore.com': {
+    id: 'emp-admin',
+    kimaiUserId: 200,
+    timetrexId: null,
+    firstName: 'Lisa',
+    lastName: 'Chen',
+    email: 'admin@servicecore.com',
+    phone: '555-0100',
+    role: Role.HR_ADMIN,
+    employeeClass: EmployeeClass.OFFICE,
+    stateCode: 'CO',
+    isMotorCarrier: false,
+    cbAgreementId: null,
+    managerId: null,
+    deletedAt: null,
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2025-06-01'),
+  },
+  'manager@servicecore.com': {
+    id: 'emp-mgr',
+    kimaiUserId: 100,
+    timetrexId: null,
+    firstName: 'Sarah',
+    lastName: 'Palmer',
+    email: 'manager@servicecore.com',
+    phone: '555-0101',
+    role: Role.ROUTE_MANAGER,
+    employeeClass: EmployeeClass.NON_CDL,
+    stateCode: 'CO',
+    isMotorCarrier: false,
+    cbAgreementId: null,
+    managerId: null,
+    deletedAt: null,
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2025-06-01'),
+  },
+  'driver@servicecore.com': {
+    id: 'emp-001',
+    kimaiUserId: 1,
+    timetrexId: null,
+    firstName: 'Marcus',
+    lastName: 'Rivera',
+    email: 'driver@servicecore.com',
+    phone: '555-0102',
+    role: Role.DRIVER,
+    employeeClass: EmployeeClass.CDL_A,
+    stateCode: 'CO',
+    isMotorCarrier: true,
+    cbAgreementId: null,
+    managerId: 'emp-mgr',
+    deletedAt: null,
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2025-06-01'),
+  },
+  'exec@servicecore.com': {
+    id: 'emp-exec',
+    kimaiUserId: 204,
+    timetrexId: null,
+    firstName: 'Rachel',
+    lastName: 'Adams',
+    email: 'exec@servicecore.com',
+    phone: '555-0103',
+    role: Role.EXECUTIVE,
+    employeeClass: EmployeeClass.OFFICE,
+    stateCode: 'CO',
+    isMotorCarrier: false,
+    cbAgreementId: null,
+    managerId: null,
+    deletedAt: null,
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2025-06-01'),
+  },
 };
 
 // -------------------------------------------------------
@@ -46,11 +102,14 @@ authRouter.post('/login', (req: Request, res: Response) => {
     return;
   }
 
-  // Stub: accept any credentials
+  // Match demo account by email, accept any password "demo" or "password"
+  const employee = DEMO_ACCOUNTS[email.toLowerCase()]
+    ?? DEMO_ACCOUNTS['admin@servicecore.com']; // fallback to admin for any email
+
   const payload: Omit<TokenPayload, 'iat' | 'exp'> = {
-    sub: stubEmployee.id,
-    role: stubEmployee.role,
-    email: stubEmployee.email,
+    sub: employee.id,
+    role: employee.role,
+    email: employee.email,
   };
 
   const accessToken = jwt.sign(payload, JWT_SECRET, {
@@ -63,7 +122,7 @@ authRouter.post('/login', (req: Request, res: Response) => {
   const body: LoginResponse = {
     accessToken,
     refreshToken,
-    employee: stubEmployee,
+    employee,
   };
 
   res.json(body);

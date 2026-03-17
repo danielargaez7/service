@@ -5,7 +5,7 @@ import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TagModule } from 'primeng/tag';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 
@@ -34,7 +34,7 @@ interface ScheduleEntry {
     ButtonModule,
     CardModule,
     TagModule,
-    DropdownModule,
+    SelectModule,
     DialogModule,
     InputTextModule,
   ],
@@ -150,18 +150,18 @@ interface ScheduleEntry {
         <div class="dialog-body">
           <div class="form-field">
             <label>Driver</label>
-            <p-dropdown [options]="driverOptions" placeholder="Select Driver"
-                        styleClass="w-full"></p-dropdown>
+            <p-select [options]="driverOptions" placeholder="Select Driver"
+                        styleClass="w-full"></p-select>
           </div>
           <div class="form-field">
             <label>Route</label>
-            <p-dropdown [options]="routeOptions" placeholder="Select Route"
-                        styleClass="w-full"></p-dropdown>
+            <p-select [options]="routeOptions" placeholder="Select Route"
+                        styleClass="w-full"></p-select>
           </div>
           <div class="form-field">
             <label>Job Type</label>
-            <p-dropdown [options]="jobTypeOptions" placeholder="Select Job Type"
-                        styleClass="w-full"></p-dropdown>
+            <p-select [options]="jobTypeOptions" placeholder="Select Job Type"
+                        styleClass="w-full"></p-select>
           </div>
           <div class="form-row">
             <div class="form-field">
