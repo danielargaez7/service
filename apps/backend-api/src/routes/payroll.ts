@@ -8,6 +8,7 @@ import {
   PayRate,
   TimeEntry,
   EmployeeClass,
+  Role,
 } from '@servicecore/shared-models';
 import { requireRole } from '../middleware/rbac.middleware';
 import { TimeTrexService } from '../services/timetrex.service';
@@ -26,7 +27,7 @@ const TIMETREX_INTEGRATION_ENABLED =
 // ---------------------------------------------------------------------------
 payrollRouter.get(
   '/timetrex-auth-check',
-  requireRole('PAYROLL_ADMIN', 'HR_ADMIN', 'SYSTEM_ADMIN'),
+  requireRole(Role.PAYROLL_ADMIN, Role.HR_ADMIN, Role.SYSTEM_ADMIN),
   (_req: Request, res: Response) => {
     res.json({
       integrationEnabled: TIMETREX_INTEGRATION_ENABLED,
@@ -125,7 +126,15 @@ function apiError(
 // ---------------------------------------------------------------------------
 // GET /preview — pre-payroll audit report
 // ---------------------------------------------------------------------------
-payrollRouter.get('/preview', async (req: Request, res: Response) => {
+payrollRouter.get(
+  '/preview',
+  requireRole(
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  async (req: Request, res: Response) => {
   const parsed = previewQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     apiError(
@@ -191,14 +200,15 @@ payrollRouter.get('/preview', async (req: Request, res: Response) => {
     anomalyScores,
     source: 'stub',
   });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // POST /export — trigger QuickBooks / TimeTrex export
 // ---------------------------------------------------------------------------
 payrollRouter.post(
   '/export',
-  requireRole('PAYROLL_ADMIN', 'HR_ADMIN', 'SYSTEM_ADMIN'),
+  requireRole(Role.PAYROLL_ADMIN, Role.SYSTEM_ADMIN),
   async (req: Request, res: Response) => {
     const parsed = exportSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -247,36 +257,45 @@ payrollRouter.post(
 // ---------------------------------------------------------------------------
 // POST /what-if — what-if simulator
 // ---------------------------------------------------------------------------
-payrollRouter.post('/what-if', (req: Request, res: Response) => {
-  const parsed = whatIfSchema.safeParse(req.body);
-  if (!parsed.success) {
-    apiError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      'Invalid what-if simulation payload',
-      parsed.error.flatten()
-    );
-    return;
+payrollRouter.post(
+  '/what-if',
+  requireRole(
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (req: Request, res: Response) => {
+    const parsed = whatIfSchema.safeParse(req.body);
+    if (!parsed.success) {
+      apiError(
+        res,
+        400,
+        'VALIDATION_ERROR',
+        'Invalid what-if simulation payload',
+        parsed.error.flatten()
+      );
+      return;
+    }
+
+    const { employeeId, additionalHours } = parsed.data;
+
+    const simulated: OvertimeResult = {
+      ...stubOT,
+      overtimeHours: stubOT.overtimeHours + additionalHours,
+      overtimePay: stubOT.overtimePay + additionalHours * 45,
+      totalPay: stubOT.totalPay + additionalHours * 45,
+      warnings: [
+        ...stubOT.warnings,
+        `Simulated ${additionalHours}h additional — OT cost impact shown`,
+      ],
+    };
+
+    res.json({
+      employeeId: employeeId ?? 'emp-002',
+      baseline: stubOT,
+      simulated,
+      costDelta: additionalHours * 45,
+    });
   }
-
-  const { employeeId, additionalHours } = parsed.data;
-
-  const simulated: OvertimeResult = {
-    ...stubOT,
-    overtimeHours: stubOT.overtimeHours + additionalHours,
-    overtimePay: stubOT.overtimePay + additionalHours * 45,
-    totalPay: stubOT.totalPay + additionalHours * 45,
-    warnings: [
-      ...stubOT.warnings,
-      `Simulated ${additionalHours}h additional — OT cost impact shown`,
-    ],
-  };
-
-  res.json({
-    employeeId: employeeId ?? 'emp-002',
-    baseline: stubOT,
-    simulated,
-    costDelta: additionalHours * 45,
-  });
-});
+);

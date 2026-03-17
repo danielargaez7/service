@@ -5,6 +5,7 @@ import {
   EmployeeClass,
   HOSStatus,
 } from '@servicecore/shared-models';
+import { requireRole, requireSelfOrRole } from '../middleware/rbac.middleware';
 
 export const employeesRouter = Router();
 
@@ -71,7 +72,17 @@ const stubEmployees: Employee[] = [
 // ---------------------------------------------------------------------------
 // GET / — list employees (RBAC filtered in a real impl)
 // ---------------------------------------------------------------------------
-employeesRouter.get('/', (req: Request, res: Response) => {
+employeesRouter.get(
+  '/',
+  requireRole(
+    Role.DRIVER,
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (req: Request, res: Response) => {
   // In production, filter by req.user.role — managers see their reports,
   // HR/admins see everyone, drivers see only themselves.
   const role = req.user?.role;
@@ -82,12 +93,23 @@ employeesRouter.get('/', (req: Request, res: Response) => {
   }
 
   res.json({ data: results, total: results.length });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /:id — single employee
 // ---------------------------------------------------------------------------
-employeesRouter.get('/:id', (req: Request, res: Response) => {
+employeesRouter.get(
+  '/:id',
+  requireSelfOrRole(
+    (req) => req.params.id,
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (req: Request, res: Response) => {
   const emp = stubEmployees.find((e) => e.id === req.params.id);
 
   if (!emp) {
@@ -96,12 +118,23 @@ employeesRouter.get('/:id', (req: Request, res: Response) => {
   }
 
   res.json(emp);
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /:id/hos — HOS status for a driver
 // ---------------------------------------------------------------------------
-employeesRouter.get('/:id/hos', (req: Request, res: Response) => {
+employeesRouter.get(
+  '/:id/hos',
+  requireSelfOrRole(
+    (req) => req.params.id,
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (req: Request, res: Response) => {
   const { id } = req.params;
 
   const hosStatus: HOSStatus = {
@@ -116,4 +149,5 @@ employeesRouter.get('/:id/hos', (req: Request, res: Response) => {
   };
 
   res.json(hosStatus);
-});
+  }
+);

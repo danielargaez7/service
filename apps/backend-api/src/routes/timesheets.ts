@@ -5,6 +5,7 @@ import {
   TimesheetStatus,
   JobType,
   ClockPunchDto,
+  Role,
 } from '@servicecore/shared-models';
 import { requireRole } from '../middleware/rbac.middleware';
 import { KimaiService } from '../services/kimai.service';
@@ -112,7 +113,17 @@ function apiError(
 // ---------------------------------------------------------------------------
 // GET / — paginated list with query filters
 // ---------------------------------------------------------------------------
-timesheetsRouter.get('/', async (req: Request, res: Response) => {
+timesheetsRouter.get(
+  '/',
+  requireRole(
+    Role.DRIVER,
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  async (req: Request, res: Response) => {
   const parsed = timesheetQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     apiError(
@@ -126,11 +137,13 @@ timesheetsRouter.get('/', async (req: Request, res: Response) => {
   }
 
   const query = parsed.data;
+  const scopedEmployeeId =
+    req.user?.role === Role.DRIVER ? req.user.sub : query.employeeId;
 
   if (KIMAI_INTEGRATION_ENABLED) {
     try {
       const data = await kimaiService.listTimesheets({
-        ...(query.employeeId ? { user: query.employeeId } : {}),
+        ...(scopedEmployeeId ? { user: scopedEmployeeId } : {}),
         ...(query.startDate ? { begin: query.startDate } : {}),
         ...(query.endDate ? { end: query.endDate } : {}),
         page: query.page,
@@ -159,8 +172,8 @@ timesheetsRouter.get('/', async (req: Request, res: Response) => {
 
   let filtered = [...stubEntries];
 
-  if (query.employeeId) {
-    filtered = filtered.filter((entry) => entry.employeeId === query.employeeId);
+  if (scopedEmployeeId) {
+    filtered = filtered.filter((entry) => entry.employeeId === scopedEmployeeId);
   }
   if (query.status) {
     filtered = filtered.filter((entry) => entry.status === query.status);
@@ -183,20 +196,41 @@ timesheetsRouter.get('/', async (req: Request, res: Response) => {
     limit: query.limit,
     source: 'stub',
   });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /active — currently clocked-in employees
 // ---------------------------------------------------------------------------
-timesheetsRouter.get('/active', (_req: Request, res: Response) => {
+timesheetsRouter.get(
+  '/active',
+  requireRole(
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (_req: Request, res: Response) => {
   const active = stubEntries.filter((e) => e.clockOut === null);
   res.json({ data: active, count: active.length });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // POST /punch — clock in / out
 // ---------------------------------------------------------------------------
-timesheetsRouter.post('/punch', async (req: Request, res: Response) => {
+timesheetsRouter.post(
+  '/punch',
+  requireRole(
+    Role.DRIVER,
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  async (req: Request, res: Response) => {
   const parsed = punchSchema.safeParse(req.body);
   if (!parsed.success) {
     apiError(
@@ -271,14 +305,15 @@ timesheetsRouter.post('/punch', async (req: Request, res: Response) => {
     anomaly,
     source: 'stub',
   });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // PATCH /:id/approve — manager approval
 // ---------------------------------------------------------------------------
 timesheetsRouter.patch(
   '/:id/approve',
-  requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'SYSTEM_ADMIN'),
+  requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.PAYROLL_ADMIN, Role.SYSTEM_ADMIN),
   async (req: Request, res: Response) => {
   const { id } = req.params;
 
@@ -304,7 +339,7 @@ timesheetsRouter.patch(
 // ---------------------------------------------------------------------------
 timesheetsRouter.patch(
   '/:id/reject',
-  requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'SYSTEM_ADMIN'),
+  requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.PAYROLL_ADMIN, Role.SYSTEM_ADMIN),
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const parsed = rejectSchema.safeParse(req.body);

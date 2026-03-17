@@ -26,13 +26,50 @@ Expected status:
 
 ## 2) Demo Credentials
 
-Use any non-empty password with:
+Use password `demo` (or `password`) with:
 - `admin@servicecore.com`
 - `manager@servicecore.com`
 - `driver@servicecore.com`
 - `exec@servicecore.com`
+- `payroll@servicecore.com`
 
-## 3) Live Demo Sequence
+## 3) TimeTrex Mode Switching
+
+### Demo-safe mode
+
+Use this for presentations and local rehearsals:
+
+```bash
+TIMETREX_INTEGRATION_ENABLED=false
+TIMETREX_API_MODE=rest
+```
+
+This keeps payroll preview/export on the stubbed, predictable path.
+
+### Real legacy RPC mode
+
+Use this only when real TimeTrex credentials are verified:
+
+```bash
+TIMETREX_INTEGRATION_ENABLED=true
+TIMETREX_API_MODE=legacy_rpc
+```
+
+Then choose one auth path:
+
+- `TIMETREX_AUTH_MODE=env_session`
+  - requires `TIMETREX_SESSION_COOKIE`
+  - requires `TIMETREX_CSRF_TOKEN`
+- `TIMETREX_AUTH_MODE=rpc_login`
+  - requires `TIMETREX_USERNAME`
+  - requires `TIMETREX_PASSWORD`
+
+Quick validation endpoint:
+
+```bash
+GET /api/payroll/timetrex-auth-check
+```
+## 4) Live Demo Sequence
 
 1. **Driver clock-in flow**
    - Open driver app and clock in.
@@ -47,7 +84,7 @@ Use any non-empty password with:
    - Run NLQ or chat query tied to payroll/timesheet context.
    - Optionally provide thumbs up/down feedback.
 
-## 4) Fast Recovery Commands
+## 5) Fast Recovery Commands
 
 ```bash
 # if ports are stuck
@@ -60,7 +97,7 @@ npm run dev:demo
 npm run demo:preflight
 ```
 
-## 5) Demo Guardrails
+## 6) Demo Guardrails
 
 - Keep `TIMETREX_INTEGRATION_ENABLED=false` during demos unless real credentials are verified.
 - Never use live production API keys in demo files.

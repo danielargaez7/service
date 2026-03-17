@@ -3,8 +3,10 @@ import {
   ComplianceRisk,
   Certification,
   CertificationType,
+  Role,
 } from '@servicecore/shared-models';
 import { ComplianceService } from '../services/compliance.service';
+import { requireRole } from '../middleware/rbac.middleware';
 
 export const complianceRouter = Router();
 const complianceService = new ComplianceService();
@@ -81,7 +83,16 @@ const stubCerts: Certification[] = [
 // ---------------------------------------------------------------------------
 // GET /risks — all open compliance risks sorted by severity
 // ---------------------------------------------------------------------------
-complianceRouter.get('/risks', (_req: Request, res: Response) => {
+complianceRouter.get(
+  '/risks',
+  requireRole(
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (_req: Request, res: Response) => {
   const hosRisk = complianceService.buildHOSRiskIfNeeded(
     'emp-001',
     'Marcus Rivera',
@@ -134,12 +145,22 @@ complianceRouter.get('/risks', (_req: Request, res: Response) => {
     hosRisk ? [...stubRisks, hosRisk] : stubRisks
   );
   res.json({ data: sorted, total: sorted.length });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /certifications — list certifications with filters
 // ---------------------------------------------------------------------------
-complianceRouter.get('/certifications', (req: Request, res: Response) => {
+complianceRouter.get(
+  '/certifications',
+  requireRole(
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  (req: Request, res: Response) => {
   const { employeeId, type } = req.query as Record<string, string>;
 
   let filtered = [...stubCerts];
@@ -151,13 +172,21 @@ complianceRouter.get('/certifications', (req: Request, res: Response) => {
   }
 
   res.json({ data: filtered, total: filtered.length });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /certifications/expiring — expiring within N days
 // ---------------------------------------------------------------------------
 complianceRouter.get(
   '/certifications/expiring',
+  requireRole(
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
   (req: Request, res: Response) => {
     const days = parseInt((req.query.days as string) ?? '30', 10);
     const expiring = complianceService.getExpiringCertifications(stubCerts, days);

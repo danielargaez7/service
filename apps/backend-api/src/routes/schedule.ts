@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middleware/rbac.middleware';
+import { Role } from '@servicecore/shared-models';
 
 export const scheduleRouter = Router();
 
 // GET / — schedules by date range
-scheduleRouter.get('/', requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'DISPATCHER'), (_req: Request, res: Response) => {
+scheduleRouter.get('/', requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.PAYROLL_ADMIN, Role.DISPATCHER, Role.SYSTEM_ADMIN), (_req: Request, res: Response) => {
   res.json({
     data: [
       {
@@ -35,7 +36,7 @@ scheduleRouter.get('/', requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN'
 });
 
 // POST / — create schedule
-scheduleRouter.post('/', requireRole('ROUTE_MANAGER', 'HR_ADMIN'), (req: Request, res: Response) => {
+scheduleRouter.post('/', requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.SYSTEM_ADMIN), (req: Request, res: Response) => {
   res.status(201).json({
     id: 'sched-new',
     ...req.body,
@@ -44,7 +45,7 @@ scheduleRouter.post('/', requireRole('ROUTE_MANAGER', 'HR_ADMIN'), (req: Request
 });
 
 // PATCH /:id — update schedule
-scheduleRouter.patch('/:id', requireRole('ROUTE_MANAGER', 'HR_ADMIN'), (req: Request, res: Response) => {
+scheduleRouter.patch('/:id', requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.SYSTEM_ADMIN), (req: Request, res: Response) => {
   res.json({
     id: req.params.id,
     ...req.body,

@@ -12,6 +12,7 @@ import {
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 const ACCESS_TOKEN_TTL = '1h';
 const REFRESH_TOKEN_TTL = '7d';
+const DEMO_PASSWORDS = new Set(['demo', 'password']);
 
 export const authRouter = Router();
 
@@ -71,6 +72,24 @@ const DEMO_ACCOUNTS: Record<string, Employee> = {
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2025-06-01'),
   },
+  'payroll@servicecore.com': {
+    id: 'emp-payroll',
+    kimaiUserId: 205,
+    timetrexId: null,
+    firstName: 'Noah',
+    lastName: 'Bennett',
+    email: 'payroll@servicecore.com',
+    phone: '555-0104',
+    role: Role.PAYROLL_ADMIN,
+    employeeClass: EmployeeClass.OFFICE,
+    stateCode: 'CO',
+    isMotorCarrier: false,
+    cbAgreementId: null,
+    managerId: null,
+    deletedAt: null,
+    createdAt: new Date('2024-01-15'),
+    updatedAt: new Date('2025-06-01'),
+  },
   'exec@servicecore.com': {
     id: 'emp-exec',
     kimaiUserId: 204,
@@ -102,9 +121,16 @@ authRouter.post('/login', (req: Request, res: Response) => {
     return;
   }
 
-  // Match demo account by email, accept any password "demo" or "password"
-  const employee = DEMO_ACCOUNTS[email.toLowerCase()]
-    ?? DEMO_ACCOUNTS['admin@servicecore.com']; // fallback to admin for any email
+  if (!DEMO_PASSWORDS.has(password)) {
+    res.status(401).json({ error: 'Invalid email or password' });
+    return;
+  }
+
+  const employee = DEMO_ACCOUNTS[email.toLowerCase()];
+  if (!employee) {
+    res.status(401).json({ error: 'Invalid email or password' });
+    return;
+  }
 
   const payload: Omit<TokenPayload, 'iat' | 'exp'> = {
     sub: employee.id,

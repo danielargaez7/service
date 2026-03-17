@@ -4,14 +4,25 @@ import {
   OvertimeTrend,
   LaborCostByJob,
   JobType,
+  Role,
 } from '@servicecore/shared-models';
+import { requireRole } from '../middleware/rbac.middleware';
 
 export const analyticsRouter = Router();
 
 // ---------------------------------------------------------------------------
 // GET /overview — dashboard KPIs
 // ---------------------------------------------------------------------------
-analyticsRouter.get('/overview', (_req: Request, res: Response) => {
+analyticsRouter.get(
+  '/overview',
+  requireRole(
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.EXECUTIVE,
+    Role.SYSTEM_ADMIN
+  ),
+  (_req: Request, res: Response) => {
   const overview: DashboardOverview = {
     totalActiveWorkers: 47,
     totalClockedInToday: 32,
@@ -22,12 +33,22 @@ analyticsRouter.get('/overview', (_req: Request, res: Response) => {
   };
 
   res.json(overview);
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /overtime — OT trends
 // ---------------------------------------------------------------------------
-analyticsRouter.get('/overtime', (_req: Request, res: Response) => {
+analyticsRouter.get(
+  '/overtime',
+  requireRole(
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.EXECUTIVE,
+    Role.SYSTEM_ADMIN
+  ),
+  (_req: Request, res: Response) => {
   const trends: OvertimeTrend[] = [
     {
       date: '2026-03-10',
@@ -67,12 +88,22 @@ analyticsRouter.get('/overtime', (_req: Request, res: Response) => {
   ];
 
   res.json({ data: trends });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // GET /labor-cost — labor cost breakdowns
 // ---------------------------------------------------------------------------
-analyticsRouter.get('/labor-cost', (_req: Request, res: Response) => {
+analyticsRouter.get(
+  '/labor-cost',
+  requireRole(
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.EXECUTIVE,
+    Role.SYSTEM_ADMIN
+  ),
+  (_req: Request, res: Response) => {
   const byJob: LaborCostByJob[] = [
     {
       jobType: JobType.RESIDENTIAL_SANITATION,
@@ -107,4 +138,5 @@ analyticsRouter.get('/labor-cost', (_req: Request, res: Response) => {
   ];
 
   res.json({ data: byJob });
-});
+  }
+);

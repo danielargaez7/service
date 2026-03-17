@@ -7,6 +7,8 @@ describe('backend-api integration routes', () => {
   let app: Express;
   let accessToken: string;
   let payrollToken: string;
+  let driverToken: string;
+  let executiveToken: string;
   let server: http.Server;
   let wss: WebSocket.Server;
 
@@ -31,10 +33,20 @@ describe('backend-api integration routes', () => {
       .send({ email: 'manager@servicecore.com', password: 'demo' });
     accessToken = managerLogin.body.accessToken;
 
-    const adminLogin = await request(app)
+    const driverLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@servicecore.com', password: 'demo' });
-    payrollToken = adminLogin.body.accessToken;
+      .send({ email: 'driver@servicecore.com', password: 'demo' });
+    driverToken = driverLogin.body.accessToken;
+
+    const payrollLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'payroll@servicecore.com', password: 'demo' });
+    payrollToken = payrollLogin.body.accessToken;
+
+    const executiveLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'exec@servicecore.com', password: 'demo' });
+    executiveToken = executiveLogin.body.accessToken;
   });
 
   afterAll(async () => {
@@ -110,5 +122,29 @@ describe('backend-api integration routes', () => {
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('diagnostics.apiMode', 'legacy_rpc');
     expect(response.body).toHaveProperty('diagnostics.authMode', 'env_session');
+  });
+
+  it('rejects unknown demo logins', async () => {
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'unknown@servicecore.com', password: 'demo' });
+
+    expect(response.status).toBe(401);
+  });
+
+  it('blocks drivers from viewing active workforce roster', async () => {
+    const response = await request(app)
+      .get('/api/timesheets/active')
+      .set('Authorization', `Bearer ${driverToken}`);
+
+    expect(response.status).toBe(403);
+  });
+
+  it('blocks executives from payroll preview access', async () => {
+    const response = await request(app)
+      .get('/api/payroll/preview')
+      .set('Authorization', `Bearer ${executiveToken}`);
+
+    expect(response.status).toBe(403);
   });
 });

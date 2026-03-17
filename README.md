@@ -81,6 +81,21 @@ Most important local values:
 - `JWT_SECRET` (used by API auth middleware/routes)
 - integration keys (Kimai, TimeTrex, Twilio, SendGrid, etc.) only when those features are enabled
 
+TimeTrex mode quick guide:
+
+- **Demo-safe default**
+  - `TIMETREX_INTEGRATION_ENABLED=false`
+  - `TIMETREX_API_MODE=rest`
+  - uses local stub/mock-backed payroll behavior for predictable demos
+- **Real legacy RPC mode**
+  - `TIMETREX_INTEGRATION_ENABLED=true`
+  - `TIMETREX_API_MODE=legacy_rpc`
+  - choose one auth path:
+    - `TIMETREX_AUTH_MODE=env_session` with `TIMETREX_SESSION_COOKIE` + `TIMETREX_CSRF_TOKEN`
+    - `TIMETREX_AUTH_MODE=rpc_login` with `TIMETREX_USERNAME` + `TIMETREX_PASSWORD`
+- Quick auth visibility:
+  - `GET /api/payroll/timetrex-auth-check`
+
 ## Auth and API Notes
 
 - Public endpoint:
@@ -108,8 +123,9 @@ Current login route is a demo/stub implementation for local dev:
   - `admin@servicecore.com`
   - `manager@servicecore.com`
   - `driver@servicecore.com`
+  - `payroll@servicecore.com`
   - `exec@servicecore.com`
-- any non-empty password is currently accepted in the stub path
+- accepted demo passwords are `demo` and `password`
 
 ## Troubleshooting
 

@@ -20,3 +20,35 @@ export function requireRole(...roles: string[]) {
     next();
   };
 }
+
+/**
+ * Allows a user to access their own resource, or lets privileged roles
+ * access it on behalf of others.
+ */
+export function requireSelfOrRole(
+  getSubjectId: (req: Request) => string | undefined,
+  ...roles: string[]
+) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const userId = req.user?.sub;
+    const userRole = req.user?.role;
+    const subjectId = getSubjectId(req);
+
+    if (userId && subjectId && userId === subjectId) {
+      next();
+      return;
+    }
+
+    if (userRole && roles.includes(userRole)) {
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      error: 'Forbidden — insufficient role',
+      requiredRoles: roles,
+      currentRole: userRole ?? null,
+      subjectId: subjectId ?? null,
+    });
+  };
+}
