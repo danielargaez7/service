@@ -29,6 +29,28 @@ This repository demonstrates a production-ready Angular monorepo with:
 
 ## 🚀 Quick Start
 
+### Local Development (ServiceCore)
+
+```bash
+# Use Node 22 LTS for this workspace
+nvm use
+
+# Install dependencies
+npm install
+
+# Start backend API + manager dashboard + driver app
+npm run dev:all
+
+# Stop local dev servers
+npm run dev:stop
+```
+
+Services:
+
+- Manager dashboard: `http://localhost:4200`
+- Driver app: `http://localhost:4201`
+- Backend API health: `http://localhost:3000/api/health`
+
 ```bash
 # Clone the repository
 git clone <your-fork-url>

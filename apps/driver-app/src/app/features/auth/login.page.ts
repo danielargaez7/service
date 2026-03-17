@@ -12,8 +12,6 @@ import {
   IonList,
   IonButton,
   IonToast,
-  IonLabel,
-  IonIcon,
 } from '@ionic/angular/standalone';
 import { AuthService } from '../../core/auth.service';
 
@@ -32,8 +30,6 @@ import { AuthService } from '../../core/auth.service';
     IonList,
     IonButton,
     IonToast,
-    IonLabel,
-    IonIcon,
   ],
   template: `
     <ion-header>

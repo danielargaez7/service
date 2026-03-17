@@ -2,7 +2,13 @@
   "name": "@servicecore/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "dev:api": "NX_DAEMON=false NX_CLOUD=false nx build backend-api --configuration=development && node dist/apps/backend-api/main.js",
+    "dev:dashboard": "NX_DAEMON=false NX_CLOUD=false CHOKIDAR_USEPOLLING=1 WATCHPACK_POLLING=true nx serve manager-dashboard --port=4200 --poll=1000",
+    "dev:driver": "NX_DAEMON=false NX_CLOUD=false CHOKIDAR_USEPOLLING=1 WATCHPACK_POLLING=true nx serve driver-app --port=4201 --poll=1000",
+    "dev:all": "concurrently -k -n API,DASH,DRIVER -c cyan,green,magenta \"npm:dev:api\" \"npm:dev:dashboard\" \"npm:dev:driver\"",
+    "dev:stop": "lsof -ti:3000 -ti:4200 -ti:4201 | xargs kill -9"
+  },
   "private": true,
   "engines": {
     "node": ">=22 <23",
@@ -101,6 +107,7 @@
     "@vitest/coverage-v8": "4.0.9",
     "@vitest/ui": "4.0.9",
     "angular-eslint": "21.1.0",
+    "concurrently": "^9.2.1",
     "esbuild": "^0.19.2",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
