@@ -91,6 +91,11 @@ Most important local values:
 - Protected endpoints require `Authorization: Bearer <token>`:
   - `/api/timesheets`, `/api/employees`, `/api/payroll`, `/api/compliance`, `/api/analytics`, `/api/ai`, `/api/schedule`
 
+Optional hardening:
+
+- set `REQUIRE_API_KEY=true` and provide `SERVICECORE_API_KEY` in your environment
+- when enabled, protected endpoints also require `x-api-key: <your-key>`
+
 Current login route is a demo/stub implementation for local dev:
 
 - demo emails include:

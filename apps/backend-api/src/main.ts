@@ -11,7 +11,7 @@ import { complianceRouter } from './routes/compliance';
 import { analyticsRouter } from './routes/analytics';
 import { aiRouter } from './routes/ai';
 import { scheduleRouter } from './routes/schedule';
-import { authenticate } from './middleware/auth.middleware';
+import { authenticate, requireApiKeyIfConfigured } from './middleware/auth.middleware';
 import { createWebSocketServer } from './websocket/server';
 
 const host = process.env.HOST ?? 'localhost';
@@ -45,13 +45,13 @@ app.use('/api/auth', authRouter);
 // ---------------------------------------------------------------------------
 // Protected routes — all require a valid JWT
 // ---------------------------------------------------------------------------
-app.use('/api/timesheets', authenticate, timesheetsRouter);
-app.use('/api/employees', authenticate, employeesRouter);
-app.use('/api/payroll', authenticate, payrollRouter);
-app.use('/api/compliance', authenticate, complianceRouter);
-app.use('/api/analytics', authenticate, analyticsRouter);
-app.use('/api/ai', authenticate, aiRouter);
-app.use('/api/schedule', authenticate, scheduleRouter);
+app.use('/api/timesheets', requireApiKeyIfConfigured, authenticate, timesheetsRouter);
+app.use('/api/employees', requireApiKeyIfConfigured, authenticate, employeesRouter);
+app.use('/api/payroll', requireApiKeyIfConfigured, authenticate, payrollRouter);
+app.use('/api/compliance', requireApiKeyIfConfigured, authenticate, complianceRouter);
+app.use('/api/analytics', requireApiKeyIfConfigured, authenticate, analyticsRouter);
+app.use('/api/ai', requireApiKeyIfConfigured, authenticate, aiRouter);
+app.use('/api/schedule', requireApiKeyIfConfigured, authenticate, scheduleRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler

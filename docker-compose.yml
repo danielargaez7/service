@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  kimai:
+    image: kimai/kimai2:apache
+    container_name: servicecore-kimai
+    ports:
+      - "8001:8001"
+    environment:
+      APP_ENV: prod
+      APP_SECRET: ${KIMAI_APP_SECRET:-change-me}
+      DATABASE_URL: mysql://kimai:kimai@kimai-db:3306/kimai
+      TRUSTED_HOSTS: localhost,127.0.0.1,kimai
+      ADMINMAIL: admin@servicecore.local
+      ADMINPASS: ${KIMAI_ADMIN_PASSWORD:-admin123}
+    depends_on:
+      - kimai-db
+
+  kimai-db:
+    image: mysql:8.0
+    container_name: servicecore-kimai-db
+    environment:
+      MYSQL_DATABASE: kimai
+      MYSQL_USER: kimai
+      MYSQL_PASSWORD: kimai
+      MYSQL_ROOT_PASSWORD: root
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - kimai_mysql_data:/var/lib/mysql
+
+  timetrex-db:
+    image: mysql:8.0
+    container_name: servicecore-timetrex-db
+    environment:
+      MYSQL_DATABASE: timetrex
+      MYSQL_USER: timetrex
+      MYSQL_PASSWORD: timetrex
+      MYSQL_ROOT_PASSWORD: root
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - timetrex_mysql_data:/var/lib/mysql
+
+  timetrex:
+    image: timetrex/timetrex:latest
+    container_name: servicecore-timetrex
+    ports:
+      - "8002:80"
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: timetrex-db
+      DB_PORT: 3306
+      DB_NAME: timetrex
+      DB_USER: timetrex
+      DB_PASS: timetrex
+    depends_on:
+      - timetrex-db
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: servicecore-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: servicecore
+      POSTGRES_USER: servicecore
+      POSTGRES_PASSWORD: servicecore
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: servicecore-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  python-anomaly:
+    build:
+      context: ./services/anomaly-detection
+    container_name: servicecore-anomaly
+    ports:
+      - "8003:8003"
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+volumes:
+  postgres_data:
+  redis_data:
+  kimai_mysql_data:
+  timetrex_mysql_data:

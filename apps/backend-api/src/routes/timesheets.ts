@@ -1,12 +1,18 @@
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import {
   TimeEntry,
   TimesheetStatus,
   JobType,
   ClockPunchDto,
 } from '@servicecore/shared-models';
+import { requireRole } from '../middleware/rbac.middleware';
+import { KimaiService } from '../services/kimai.service';
 
 export const timesheetsRouter = Router();
+const kimaiService = new KimaiService();
+const KIMAI_INTEGRATION_ENABLED =
+  process.env.KIMAI_INTEGRATION_ENABLED === 'true';
 
 // ---------------------------------------------------------------------------
 // Stub data
@@ -50,45 +56,128 @@ const stubEntries: TimeEntry[] = [
   },
 ];
 
+const timesheetQuerySchema = z.object({
+  employeeId: z.string().optional(),
+  status: z.nativeEnum(TimesheetStatus).optional(),
+  startDate: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid startDate')
+    .optional(),
+  endDate: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid endDate')
+    .optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+const punchSchema = z.object({
+  type: z.enum(['IN', 'OUT']),
+  timestamp: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid timestamp'),
+  gps: z.object({
+    lat: z.number(),
+    lng: z.number(),
+    accuracy: z.number(),
+  }),
+  jobType: z.nativeEnum(JobType).optional(),
+  photoBase64: z.string().min(1).optional(),
+});
+
+const rejectSchema = z.object({
+  reason: z.string().min(3),
+});
+
+function apiError(
+  res: Response,
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown
+): void {
+  res.status(status).json({
+    error: {
+      code,
+      message,
+      ...(details ? { details } : {}),
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // GET / — paginated list with query filters
 // ---------------------------------------------------------------------------
-timesheetsRouter.get('/', (req: Request, res: Response) => {
-  const {
-    employeeId,
-    status,
-    startDate,
-    endDate,
-    page = '1',
-    limit = '20',
-  } = req.query as Record<string, string>;
+timesheetsRouter.get('/', async (req: Request, res: Response) => {
+  const parsed = timesheetQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    apiError(
+      res,
+      400,
+      'VALIDATION_ERROR',
+      'Invalid timesheet query parameters',
+      parsed.error.flatten()
+    );
+    return;
+  }
+
+  const query = parsed.data;
+
+  if (KIMAI_INTEGRATION_ENABLED) {
+    try {
+      const data = await kimaiService.listTimesheets({
+        ...(query.employeeId ? { user: query.employeeId } : {}),
+        ...(query.startDate ? { begin: query.startDate } : {}),
+        ...(query.endDate ? { end: query.endDate } : {}),
+        page: query.page,
+        size: query.limit,
+      });
+
+      res.json({
+        data,
+        total: Array.isArray(data) ? data.length : 0,
+        page: query.page,
+        limit: query.limit,
+        source: 'kimai',
+      });
+      return;
+    } catch (error) {
+      apiError(
+        res,
+        502,
+        'KIMAI_UPSTREAM_ERROR',
+        'Failed to fetch timesheets from Kimai',
+        { message: (error as Error).message }
+      );
+      return;
+    }
+  }
 
   let filtered = [...stubEntries];
 
-  if (employeeId) {
-    filtered = filtered.filter((e) => e.employeeId === employeeId);
+  if (query.employeeId) {
+    filtered = filtered.filter((entry) => entry.employeeId === query.employeeId);
   }
-  if (status) {
-    filtered = filtered.filter((e) => e.status === status);
+  if (query.status) {
+    filtered = filtered.filter((entry) => entry.status === query.status);
   }
-  if (startDate) {
-    const sd = new Date(startDate);
-    filtered = filtered.filter((e) => e.clockIn >= sd);
+  if (query.startDate) {
+    const sd = new Date(query.startDate);
+    filtered = filtered.filter((entry) => entry.clockIn >= sd);
   }
-  if (endDate) {
-    const ed = new Date(endDate);
-    filtered = filtered.filter((e) => e.clockIn <= ed);
+  if (query.endDate) {
+    const ed = new Date(query.endDate);
+    filtered = filtered.filter((entry) => entry.clockIn <= ed);
   }
 
-  const pageNum = Math.max(1, parseInt(page, 10));
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-  const start = (pageNum - 1) * limitNum;
+  const start = (query.page - 1) * query.limit;
 
   res.json({
-    data: filtered.slice(start, start + limitNum),
+    data: filtered.slice(start, start + query.limit),
     total: filtered.length,
-    page: pageNum,
-    limit: limitNum,
+    page: query.page,
+    limit: query.limit,
+    source: 'stub',
   });
 });
 
@@ -103,19 +192,53 @@ timesheetsRouter.get('/active', (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // POST /punch — clock in / out
 // ---------------------------------------------------------------------------
-timesheetsRouter.post('/punch', (req: Request, res: Response) => {
-  const punch = req.body as ClockPunchDto;
-
-  if (!punch.type || !punch.timestamp || !punch.gps) {
-    res
-      .status(400)
-      .json({ error: 'type, timestamp, and gps are required' });
+timesheetsRouter.post('/punch', async (req: Request, res: Response) => {
+  const parsed = punchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    apiError(
+      res,
+      400,
+      'VALIDATION_ERROR',
+      'Invalid clock punch payload',
+      parsed.error.flatten()
+    );
     return;
+  }
+
+  if (!req.user?.sub) {
+    apiError(res, 401, 'AUTH_REQUIRED', 'User context is missing');
+    return;
+  }
+
+  const punch = parsed.data as ClockPunchDto;
+
+  if (KIMAI_INTEGRATION_ENABLED) {
+    try {
+      const created = await kimaiService.createTimesheet({
+        begin: punch.timestamp,
+        end: punch.type === 'OUT' ? punch.timestamp : undefined,
+        user: req.user.sub,
+        description: 'ServiceCore punch sync',
+        tags: [punch.jobType ?? JobType.RESIDENTIAL_SANITATION],
+      });
+
+      res.status(201).json({ data: created, source: 'kimai' });
+      return;
+    } catch (error) {
+      apiError(
+        res,
+        502,
+        'KIMAI_UPSTREAM_ERROR',
+        'Failed to create punch in Kimai',
+        { message: (error as Error).message }
+      );
+      return;
+    }
   }
 
   const newEntry: TimeEntry = {
     id: `ts-${Date.now()}`,
-    employeeId: req.user?.sub ?? 'unknown',
+    employeeId: req.user.sub,
     clockIn: new Date(punch.timestamp),
     clockOut: punch.type === 'OUT' ? new Date(punch.timestamp) : null,
     jobType: punch.jobType ?? JobType.RESIDENTIAL_SANITATION,
@@ -132,13 +255,16 @@ timesheetsRouter.post('/punch', (req: Request, res: Response) => {
     updatedAt: new Date(),
   };
 
-  res.status(201).json(newEntry);
+  res.status(201).json({ data: newEntry, source: 'stub' });
 });
 
 // ---------------------------------------------------------------------------
 // PATCH /:id/approve — manager approval
 // ---------------------------------------------------------------------------
-timesheetsRouter.patch('/:id/approve', (req: Request, res: Response) => {
+timesheetsRouter.patch(
+  '/:id/approve',
+  requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'SYSTEM_ADMIN'),
+  (req: Request, res: Response) => {
   const { id } = req.params;
 
   res.json({
@@ -148,24 +274,36 @@ timesheetsRouter.patch('/:id/approve', (req: Request, res: Response) => {
     approvedAt: new Date(),
     message: `Timesheet ${id} approved`,
   });
-});
+  }
+);
 
 // ---------------------------------------------------------------------------
 // PATCH /:id/reject — manager rejection with reason
 // ---------------------------------------------------------------------------
-timesheetsRouter.patch('/:id/reject', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { reason } = req.body as { reason?: string };
+timesheetsRouter.patch(
+  '/:id/reject',
+  requireRole('ROUTE_MANAGER', 'HR_ADMIN', 'PAYROLL_ADMIN', 'SYSTEM_ADMIN'),
+  (req: Request, res: Response) => {
+    const { id } = req.params;
+    const parsed = rejectSchema.safeParse(req.body);
+    if (!parsed.success) {
+      apiError(
+        res,
+        400,
+        'VALIDATION_ERROR',
+        'A rejection reason is required',
+        parsed.error.flatten()
+      );
+      return;
+    }
 
-  if (!reason) {
-    res.status(400).json({ error: 'reason is required for rejection' });
-    return;
+    const { reason } = parsed.data;
+
+    res.json({
+      id,
+      status: TimesheetStatus.REJECTED,
+      flagReason: reason,
+      message: `Timesheet ${id} rejected`,
+    });
   }
-
-  res.json({
-    id,
-    status: TimesheetStatus.REJECTED,
-    flagReason: reason,
-    message: `Timesheet ${id} rejected`,
-  });
-});
+);
