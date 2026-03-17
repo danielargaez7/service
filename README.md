@@ -90,11 +90,17 @@ Most important local values:
   - `POST /api/auth/logout`
 - Protected endpoints require `Authorization: Bearer <token>`:
   - `/api/timesheets`, `/api/employees`, `/api/payroll`, `/api/compliance`, `/api/analytics`, `/api/ai`, `/api/schedule`
+  - includes `/api/payroll/timetrex-auth-check` for quick TimeTrex auth diagnostics (HR/PAYROLL/SYSTEM roles)
 
 Optional hardening:
 
 - set `REQUIRE_API_KEY=true` and provide `SERVICECORE_API_KEY` in your environment
 - when enabled, protected endpoints also require `x-api-key: <your-key>`
+
+TimeTrex legacy RPC auth modes:
+
+- `TIMETREX_AUTH_MODE=env_session` (default): uses `TIMETREX_SESSION_COOKIE` + `TIMETREX_CSRF_TOKEN`
+- `TIMETREX_AUTH_MODE=rpc_login`: backend logs in using `TIMETREX_USERNAME` + `TIMETREX_PASSWORD`, caches session auth, and auto-retries once on auth expiry
 
 Current login route is a demo/stub implementation for local dev:
 

@@ -22,6 +22,21 @@ const TIMETREX_INTEGRATION_ENABLED =
   process.env.TIMETREX_INTEGRATION_ENABLED === 'true';
 
 // ---------------------------------------------------------------------------
+// GET /timetrex-auth-check — quick auth mode/status diagnostics for demos
+// ---------------------------------------------------------------------------
+payrollRouter.get(
+  '/timetrex-auth-check',
+  requireRole('PAYROLL_ADMIN', 'HR_ADMIN', 'SYSTEM_ADMIN'),
+  (_req: Request, res: Response) => {
+    res.json({
+      integrationEnabled: TIMETREX_INTEGRATION_ENABLED,
+      diagnostics: timetrexService.getAuthDiagnostics(),
+      checkedAt: new Date().toISOString(),
+    });
+  }
+);
+
+// ---------------------------------------------------------------------------
 // Stub helpers
 // ---------------------------------------------------------------------------
 const stubOT: OvertimeResult = {
