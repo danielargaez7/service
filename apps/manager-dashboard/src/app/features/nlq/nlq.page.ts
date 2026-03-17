@@ -454,18 +454,59 @@ LIMIT 10;`,
     'Which drivers are approaching overtime this week?': {
       sql: `SELECT e.full_name,
        ROUND(SUM(ts.total_hours), 1) AS hours_this_week,
+       COUNT(DISTINCT ts.work_date) AS shifts_this_week,
        ROUND(40.0 - SUM(ts.total_hours), 1) AS hours_until_ot
 FROM timesheets ts
 JOIN employees e ON ts.employee_id = e.id
 WHERE ts.work_date >= DATE_TRUNC('week', CURRENT_DATE)
 GROUP BY e.id, e.full_name
-HAVING SUM(ts.total_hours) >= 32
+HAVING SUM(ts.total_hours) >= 36
 ORDER BY hours_this_week DESC;`,
       explanation:
-        '4 drivers have worked more than 36 hours this week and are approaching the 40-hour overtime threshold. James Okafor is already at 39.2 hours and will hit OT on his next shift.',
-      chartType: 'number',
-      kpiValue: '4',
-      kpiLabel: 'Drivers approaching overtime this week (36+ hours)',
+        '4 drivers are approaching overtime this week. The table shows each driver, total weekly hours, number of shifts worked, hours remaining until overtime, and whether the next shift is likely to push them over 40 hours.',
+      chartType: 'table',
+      tableData: [
+        {
+          name: 'James Okafor',
+          weeklyHours: '39.2',
+          shifts: '5',
+          avgShift: '7.8',
+          hoursUntilOt: '0.8',
+          nextShiftRisk: 'Will hit OT next shift',
+        },
+        {
+          name: 'Marcus Rivera',
+          weeklyHours: '38.1',
+          shifts: '5',
+          avgShift: '7.6',
+          hoursUntilOt: '1.9',
+          nextShiftRisk: 'High risk',
+        },
+        {
+          name: 'Lisa Tran',
+          weeklyHours: '37.4',
+          shifts: '5',
+          avgShift: '7.5',
+          hoursUntilOt: '2.6',
+          nextShiftRisk: 'High risk',
+        },
+        {
+          name: 'Derek Washington',
+          weeklyHours: '36.6',
+          shifts: '4',
+          avgShift: '9.2',
+          hoursUntilOt: '3.4',
+          nextShiftRisk: 'Monitor next assignment',
+        },
+      ],
+      tableCols: [
+        { field: 'name', header: 'Driver' },
+        { field: 'weeklyHours', header: 'Hours This Week' },
+        { field: 'shifts', header: 'Shifts' },
+        { field: 'avgShift', header: 'Avg Shift Hours' },
+        { field: 'hoursUntilOt', header: 'Hours Until OT' },
+        { field: 'nextShiftRisk', header: 'Next Shift Risk' },
+      ],
     },
   };
 
