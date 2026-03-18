@@ -36,4 +36,16 @@ export class ApiService {
   getMyProfile(): Observable<unknown> {
     return this.http.get(`${this.base}/api/employees/me`);
   }
+
+  uploadDriverAttachment(body: {
+    shiftId: string;
+    category: 'PHOTO' | 'DOCUMENT';
+    filename: string;
+    imageBase64: string;
+    gps?: { lat: number; lng: number; accuracy: number } | null;
+    note?: string;
+    timestamp: string;
+  }): Observable<unknown> {
+    return this.http.post(`${this.base}/api/timesheets/attachments`, body);
+  }
 }

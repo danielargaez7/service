@@ -4,6 +4,10 @@ import { Router } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import * as L from 'leaflet';
 import { ManagerAlertsService } from '../../core/manager-alerts.service';
+import {
+  LeaderboardPeriod,
+  ManagerGamificationService,
+} from '../../core/manager-gamification.service';
 
 interface KpiCard {
   label: string;
@@ -169,6 +173,53 @@ interface RiskBoardItem {
                 <div class="trend-bar-group">
                   <div class="trend-bar" [style.height.%]="bar.percent"></div>
                   <span>{{ bar.day }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="panel panel-gamification">
+          <div class="panel-header">
+            <h3><i class="pi pi-trophy"></i> Team Leaderboard</h3>
+            <div class="period-switch">
+              @for (period of leaderboardPeriods; track period.value) {
+                <button
+                  type="button"
+                  class="period-btn"
+                  [class.active]="gamification.selectedPeriod() === period.value"
+                  (click)="setLeaderboardPeriod(period.value)"
+                >
+                  {{ period.label }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="leaderboard-podium">
+              @for (leader of gamification.leaders(); track leader.name; let idx = $index) {
+                <div class="podium-spot" [class]="'rank-' + (idx + 1)">
+                  <span class="podium-rank">
+                    {{ idx === 0 ? '1st' : idx === 1 ? '2nd' : '3rd' }}
+                  </span>
+                  <strong>{{ leader.name }}</strong>
+                  <span class="podium-points">{{ leader.points }} pts</span>
+                  @if (leader.badge) {
+                    <span class="champion-badge">{{ leader.badge.icon }} {{ leader.badge.name }}</span>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="recent-badges">
+              <p class="section-label">Recent Badges</p>
+              @for (award of gamification.recentAwards(); track award.driverName + award.badge.name) {
+                <div class="badge-award-row">
+                  <span class="badge-award-icon">{{ award.badge.icon }}</span>
+                  <span class="badge-award-copy">
+                    <strong>{{ award.driverName }}</strong> earned {{ award.badge.name }}
+                  </span>
+                  <span class="badge-award-time">{{ award.awardedAt }}</span>
                 </div>
               }
             </div>
@@ -390,6 +441,11 @@ interface RiskBoardItem {
       grid-row: 2 / 3;
     }
 
+    .panel-gamification {
+      grid-column: 2 / 3;
+      grid-row: 3 / 4;
+    }
+
     .panel-header {
       display: flex;
       align-items: center;
@@ -538,6 +594,118 @@ interface RiskBoardItem {
       background: linear-gradient(180deg, var(--sc-orange-light), var(--sc-orange));
     }
 
+    .period-switch {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      border-radius: 999px;
+      background: var(--sc-gray-1);
+      border: 1px solid var(--sc-border);
+    }
+
+    .period-btn {
+      border: 0;
+      background: transparent;
+      color: var(--sc-text-secondary);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .period-btn.active {
+      background: var(--sc-card-bg);
+      color: var(--sc-orange);
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+    }
+
+    .leaderboard-podium {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .podium-spot {
+      border-radius: 16px;
+      border: 1px solid var(--sc-border);
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(255, 255, 255, 1) 100%);
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 140px;
+    }
+
+    .podium-spot.rank-1 {
+      border-color: rgba(249, 115, 22, 0.35);
+      box-shadow: 0 12px 30px rgba(249, 115, 22, 0.12);
+    }
+
+    .podium-rank,
+    .section-label,
+    .badge-award-time {
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      color: var(--sc-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .podium-points {
+      font-size: var(--sc-text-lg);
+      font-weight: 800;
+      color: var(--sc-text-primary);
+    }
+
+    .champion-badge {
+      margin-top: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--sc-warning-1);
+      color: var(--sc-warning-4);
+      border: 1px solid var(--sc-warning-2);
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+    }
+
+    .recent-badges {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .badge-award-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border-radius: 14px;
+      background: var(--sc-gray-1);
+      border: 1px solid var(--sc-border);
+      padding: 12px 14px;
+    }
+
+    .badge-award-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: rgba(249, 115, 22, 0.12);
+      font-size: 1.1rem;
+    }
+
+    .badge-award-copy {
+      color: var(--sc-text-primary);
+      font-size: var(--sc-text-sm);
+    }
+
     :host-context(body.dark-mode) .kpi-card,
     :host-context(body.dark-mode) .panel,
     :host-context(body.dark-mode) .quick-action-btn {
@@ -557,7 +725,10 @@ interface RiskBoardItem {
     }
 
     :host-context(body.dark-mode) .risk-board-item,
-    :host-context(body.dark-mode) .pending-approval-card {
+    :host-context(body.dark-mode) .pending-approval-card,
+    :host-context(body.dark-mode) .badge-award-row,
+    :host-context(body.dark-mode) .period-switch,
+    :host-context(body.dark-mode) .podium-spot {
       background: #1f2430;
     }
 
@@ -599,7 +770,8 @@ interface RiskBoardItem {
 
       .panel-alerts,
       .panel-stats,
-      .panel-trend {
+      .panel-trend,
+      .panel-gamification {
         grid-column: 1;
         grid-row: auto;
       }
@@ -611,6 +783,10 @@ interface RiskBoardItem {
 
     @media (max-width: 640px) {
       .kpi-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .leaderboard-podium {
         grid-template-columns: 1fr;
       }
 
@@ -714,11 +890,17 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
     { day: 'Sat', percent: 61 },
     { day: 'Sun', percent: 48 },
   ];
+  readonly leaderboardPeriods: Array<{ label: string; value: LeaderboardPeriod }> = [
+    { label: 'Week', value: 'week' },
+    { label: 'Month', value: 'month' },
+    { label: 'Quarter', value: 'quarter' },
+  ];
 
   constructor(
     private ngZone: NgZone,
     public alerts: ManagerAlertsService,
-    private readonly router: Router
+    private readonly router: Router,
+    public gamification: ManagerGamificationService
   ) {}
 
   ngOnInit(): void {
@@ -754,6 +936,10 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
     }
 
     void this.router.navigateByUrl('/compliance');
+  }
+
+  setLeaderboardPeriod(period: LeaderboardPeriod): void {
+    this.gamification.setPeriod(period);
   }
 
   private initMap(): void {

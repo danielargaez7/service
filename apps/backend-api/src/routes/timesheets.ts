@@ -90,6 +90,36 @@ const punchSchema = z.object({
   photoBase64: z.string().min(1).optional(),
 });
 
+const attachmentSchema = z.object({
+  shiftId: z.string().min(1),
+  category: z.enum(['PHOTO', 'DOCUMENT']),
+  filename: z.string().min(1),
+  imageBase64: z.string().min(1),
+  gps: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+      accuracy: z.number(),
+    })
+    .nullable()
+    .optional(),
+  note: z.string().optional(),
+  timestamp: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid timestamp'),
+});
+
+const stubAttachments: Array<{
+  id: string;
+  employeeId: string;
+  shiftId: string;
+  category: 'PHOTO' | 'DOCUMENT';
+  filename: string;
+  note?: string;
+  uploadedAt: string;
+  documentUrl: string;
+}> = [];
+
 const rejectSchema = z.object({
   reason: z.string().min(3),
 });
@@ -305,6 +335,58 @@ timesheetsRouter.post(
     anomaly,
     source: 'stub',
   });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /attachments — driver field photos and project documents
+// ---------------------------------------------------------------------------
+timesheetsRouter.post(
+  '/attachments',
+  requireRole(
+    Role.DRIVER,
+    Role.DISPATCHER,
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  async (req: Request, res: Response) => {
+    const parsed = attachmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      apiError(
+        res,
+        400,
+        'VALIDATION_ERROR',
+        'Invalid attachment payload',
+        parsed.error.flatten()
+      );
+      return;
+    }
+
+    if (!req.user?.sub) {
+      apiError(res, 401, 'AUTH_REQUIRED', 'User context is missing');
+      return;
+    }
+
+    const attachment = parsed.data;
+    const record = {
+      id: `att-${Date.now()}`,
+      employeeId: req.user.sub,
+      shiftId: attachment.shiftId,
+      category: attachment.category,
+      filename: attachment.filename,
+      note: attachment.note,
+      uploadedAt: attachment.timestamp,
+      documentUrl: `stub://shift-file/${attachment.shiftId}/${attachment.filename}`,
+    };
+
+    stubAttachments.unshift(record);
+
+    res.status(201).json({
+      data: record,
+      source: 'stub',
+    });
   }
 );
 

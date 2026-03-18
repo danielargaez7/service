@@ -11,6 +11,7 @@ import { ManagerAlertsService, ManagerAlertTier } from '../../core/manager-alert
 
 type RiskSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
 type RiskType = 'CDL_EXPIRED' | 'CDL_EXPIRING' | 'DOT_PHYSICAL_EXPIRED' | 'DOT_PHYSICAL_EXPIRING' | 'HOS_WARNING';
+type ManifestSeverity = 'OVERDUE' | 'PENDING' | 'ACCEPTED';
 
 interface ComplianceRisk {
   id: number;
@@ -22,6 +23,16 @@ interface ComplianceRisk {
   expiryDate: string | null;
   hoursRemaining: number | null;
   dateIdentified: string;
+}
+
+interface ManifestRecord {
+  id: number;
+  employeeName: string;
+  routeLabel: string;
+  wasteVolume: string;
+  status: ManifestSeverity;
+  uploadedAt: string;
+  summary: string;
 }
 
 const RISK_TYPE_LABELS: Record<RiskType, string> = {
@@ -131,6 +142,45 @@ const MOCK_RISKS: ComplianceRisk[] = [
   },
 ];
 
+const MOCK_MANIFESTS: ManifestRecord[] = [
+  {
+    id: 101,
+    employeeName: 'Marcus Rivera',
+    routeLabel: 'Mar 15 Septic Route',
+    wasteVolume: '750 gal',
+    status: 'OVERDUE',
+    uploadedAt: '2026-03-15',
+    summary: 'Pending submission to the state portal for domestic septage disposal.',
+  },
+  {
+    id: 102,
+    employeeName: 'DeShawn Williams',
+    routeLabel: 'Mar 16 Grease Trap',
+    wasteVolume: '420 gal',
+    status: 'PENDING',
+    uploadedAt: '2026-03-16',
+    summary: 'Captured in driver app but not yet transmitted to the receiving facility.',
+  },
+  {
+    id: 103,
+    employeeName: 'Carlos Mendoza',
+    routeLabel: 'Mar 14 Septic Route',
+    wasteVolume: '680 gal',
+    status: 'PENDING',
+    uploadedAt: '2026-03-14',
+    summary: 'Signature present, waiting on batch submission.',
+  },
+  {
+    id: 104,
+    employeeName: 'James Wilson',
+    routeLabel: 'Mar 13 Roll-Off',
+    wasteVolume: '5.2 tons',
+    status: 'ACCEPTED',
+    uploadedAt: '2026-03-13',
+    summary: 'Accepted by receiving facility and linked to the disposal ticket.',
+  },
+];
+
 @Component({
   standalone: true,
   imports: [
@@ -206,6 +256,88 @@ const MOCK_RISKS: ComplianceRisk[] = [
           styleClass="filter-dropdown"
         />
       </div>
+
+      <section class="manifest-panel">
+        <div class="manifest-panel-header">
+          <div>
+            <h3>Manifest Compliance</h3>
+            <p>Monitor disposal records captured from the driver end-of-shift flow.</p>
+          </div>
+          <div class="manifest-actions">
+            <button pButton type="button" icon="pi pi-download" label="Export CSV" class="p-button-outlined p-button-sm"
+              (click)="exportManifestCsv()"></button>
+            <button pButton type="button" icon="pi pi-send" label="Submit to EPA" class="p-button-sm"
+              (click)="submitPendingManifests()"></button>
+          </div>
+        </div>
+
+        <div class="manifest-groups">
+          <div class="manifest-group">
+            <div class="manifest-group-title overdue">
+              <span>Overdue (&gt;48 hours)</span>
+              <strong>{{ overdueManifests().length }} records</strong>
+            </div>
+            @for (record of overdueManifests(); track record.id) {
+              <article class="manifest-record overdue">
+                <div class="manifest-record-copy">
+                  <strong>{{ record.employeeName }} — {{ record.routeLabel }} — {{ record.wasteVolume }}</strong>
+                  <p>{{ record.summary }}</p>
+                </div>
+                <div class="manifest-record-actions">
+                  <button pButton type="button" label="Submit Now" class="p-button-sm" (click)="submitManifest(record)"></button>
+                  <button pButton type="button" label="View Record" class="p-button-outlined p-button-sm" (click)="viewManifest(record)"></button>
+                </div>
+              </article>
+            } @empty {
+              <div class="manifest-empty">No overdue manifest records.</div>
+            }
+          </div>
+
+          <div class="manifest-group">
+            <div class="manifest-group-title pending">
+              <span>Pending Submission</span>
+              <strong>{{ pendingManifests().length }} records</strong>
+            </div>
+            @for (record of pendingManifests(); track record.id) {
+              <article class="manifest-record pending">
+                <div class="manifest-record-copy">
+                  <strong>{{ record.employeeName }} — {{ record.routeLabel }} — {{ record.wasteVolume }}</strong>
+                  <p>{{ record.summary }}</p>
+                </div>
+                <div class="manifest-record-actions">
+                  <button pButton type="button" label="Submit Batch" class="p-button-sm p-button-outlined" (click)="submitManifest(record)"></button>
+                </div>
+              </article>
+            } @empty {
+              <div class="manifest-empty">No pending manifests waiting for submission.</div>
+            }
+          </div>
+
+          <div class="manifest-group">
+            <div class="manifest-group-title accepted">
+              <span>Submitted & Accepted</span>
+              <strong>{{ acceptedManifests().length }} records</strong>
+            </div>
+            @for (record of acceptedManifests(); track record.id) {
+              <article class="manifest-record accepted">
+                <div class="manifest-record-copy">
+                  <strong>{{ record.employeeName }} — {{ record.routeLabel }} — {{ record.wasteVolume }}</strong>
+                  <p>{{ record.summary }}</p>
+                </div>
+              </article>
+            } @empty {
+              <div class="manifest-empty">No accepted manifests yet this month.</div>
+            }
+          </div>
+        </div>
+
+        <div class="manifest-metrics">
+          <span>This Month: {{ manifestRecords().length }} manifests</span>
+          <span>· {{ acceptedManifests().length }} accepted</span>
+          <span>· {{ pendingManifests().length }} pending</span>
+          <span>· {{ overdueManifests().length }} overdue</span>
+        </div>
+      </section>
 
       <!-- Risk Table -->
       <p-table
@@ -384,6 +516,118 @@ const MOCK_RISKS: ComplianceRisk[] = [
       min-width: 200px;
     }
 
+    .manifest-panel {
+      background: var(--sc-card-bg);
+      border: 1px solid var(--sc-border);
+      border-radius: var(--sc-radius-lg);
+      padding: var(--sc-space-5);
+      margin-bottom: var(--sc-space-5);
+    }
+    .manifest-panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--sc-space-4);
+      margin-bottom: var(--sc-space-4);
+    }
+    .manifest-panel-header h3 {
+      margin: 0 0 4px;
+      font-size: var(--sc-text-lg);
+      color: var(--sc-text-primary);
+    }
+    .manifest-panel-header p {
+      margin: 0;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+    }
+    .manifest-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .manifest-groups {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--sc-space-4);
+    }
+    .manifest-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .manifest-group-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: var(--sc-text-sm);
+      font-weight: 700;
+      padding: 10px 12px;
+      border-radius: var(--sc-radius-md);
+    }
+    .manifest-group-title.overdue {
+      background: var(--sc-danger-1);
+      color: var(--sc-danger-4);
+    }
+    .manifest-group-title.pending {
+      background: var(--sc-warning-1);
+      color: var(--sc-warning-4);
+    }
+    .manifest-group-title.accepted {
+      background: var(--sc-success-1);
+      color: var(--sc-success-4);
+    }
+    .manifest-record {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--sc-space-4);
+      border-radius: var(--sc-radius-md);
+      padding: 12px 14px;
+      border: 1px solid var(--sc-border);
+      background: var(--sc-gray-1);
+    }
+    .manifest-record.overdue {
+      border-left: 4px solid var(--sc-danger-3);
+    }
+    .manifest-record.pending {
+      border-left: 4px solid var(--sc-warning-3);
+    }
+    .manifest-record.accepted {
+      border-left: 4px solid var(--sc-success-3);
+    }
+    .manifest-record-copy strong {
+      display: block;
+      color: var(--sc-text-primary);
+      font-size: var(--sc-text-sm);
+      margin-bottom: 4px;
+    }
+    .manifest-record-copy p {
+      margin: 0;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+      line-height: 1.4;
+    }
+    .manifest-record-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .manifest-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: var(--sc-space-4);
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+      font-weight: 600;
+    }
+    .manifest-empty {
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+      padding: 6px 0;
+    }
+
     /* Employee cell */
     .employee-cell {
       display: flex;
@@ -456,6 +700,7 @@ export class CompliancePage {
   risks = signal<(ComplianceRisk & { severityOrder: number })[]>(
     MOCK_RISKS.map((r) => ({ ...r, severityOrder: this.severityToOrder(r.severity) }))
   );
+  manifestRecords = signal<ManifestRecord[]>(MOCK_MANIFESTS);
   riskTypeFilter = signal<string | null>(null);
   severityFilter = signal<string | null>(null);
 
@@ -486,6 +731,15 @@ export class CompliancePage {
   highCount = computed(() => this.risks().filter((r) => r.severity === 'HIGH').length);
   mediumCount = computed(() => this.risks().filter((r) => r.severity === 'MEDIUM').length);
   lowCount = computed(() => this.risks().filter((r) => r.severity === 'LOW').length);
+  overdueManifests = computed(() =>
+    this.manifestRecords().filter((record) => record.status === 'OVERDUE')
+  );
+  pendingManifests = computed(() =>
+    this.manifestRecords().filter((record) => record.status === 'PENDING')
+  );
+  acceptedManifests = computed(() =>
+    this.manifestRecords().filter((record) => record.status === 'ACCEPTED')
+  );
 
   constructor(private readonly alerts: ManagerAlertsService) {}
 
@@ -546,6 +800,53 @@ export class CompliancePage {
     this.alerts.low(
       'Employee detail view coming next',
       `${risk.employeeName} (${risk.employeeId}) was selected from the compliance board.`,
+      '/compliance'
+    );
+  }
+
+  exportManifestCsv(): void {
+    this.alerts.low(
+      'Manifest export queued',
+      'Manifest compliance export was queued as a CSV download.',
+      '/compliance'
+    );
+  }
+
+  submitPendingManifests(): void {
+    const pendingCount = this.pendingManifests().length + this.overdueManifests().length;
+    this.manifestRecords.update((records) =>
+      records.map((record) =>
+        record.status === 'PENDING' || record.status === 'OVERDUE'
+          ? { ...record, status: 'ACCEPTED' as ManifestSeverity, summary: 'Submitted electronically and accepted by receiving system.' }
+          : record
+      )
+    );
+    this.alerts.high(
+      'Manifest batch submitted',
+      `${pendingCount} manifest record${pendingCount === 1 ? '' : 's'} were submitted electronically.`,
+      '/compliance'
+    );
+  }
+
+  submitManifest(record: ManifestRecord): void {
+    this.manifestRecords.update((records) =>
+      records.map((item) =>
+        item.id === record.id
+          ? { ...item, status: 'ACCEPTED' as ManifestSeverity, summary: 'Submitted electronically and accepted by receiving system.' }
+          : item
+      )
+    );
+    this.alerts.high(
+      'Manifest submitted',
+      `${record.employeeName}'s disposal record for ${record.routeLabel} was submitted successfully.`,
+      '/compliance'
+    );
+  }
+
+  viewManifest(record: ManifestRecord): void {
+    this.alerts.low(
+      'Manifest detail view coming next',
+      `Opened manifest record for ${record.employeeName} — ${record.routeLabel}.`,
       '/compliance'
     );
   }

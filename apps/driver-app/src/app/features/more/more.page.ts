@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
   IonButton,
   IonContent,
@@ -24,6 +25,7 @@ import { AuthService } from '../../core/auth.service';
     IonToggle,
     IonButton,
     IonNote,
+    RouterLink,
   ],
   template: `
     <ion-content class="ion-padding">
@@ -53,6 +55,13 @@ import { AuthService } from '../../core/auth.service';
             <p>{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</p>
           </ion-label>
           <ion-note slot="end">{{ auth.currentUser()?.role ?? 'DRIVER' }}</ion-note>
+        </ion-item>
+
+        <ion-item lines="full" routerLink="/tabs/badges" detail="true">
+          <ion-label>
+            <h3>My Badges</h3>
+            <p>See earned badges, locked goals, and how close you are to the next rank.</p>
+          </ion-label>
         </ion-item>
       </ion-list>
 

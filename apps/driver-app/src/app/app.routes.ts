@@ -40,6 +40,11 @@ export const appRoutes: Route[] = [
         loadComponent: () =>
           import('./features/more/more.page').then((m) => m.MorePage),
       },
+      {
+        path: 'badges',
+        loadComponent: () =>
+          import('./features/badges/badges.page').then((m) => m.BadgesPage),
+      },
       { path: '', redirectTo: 'today', pathMatch: 'full' },
     ],
   },
