@@ -157,6 +157,7 @@ Current login route is a demo/stub implementation for local dev:
 ## Demo Runbook
 
 - Standard walkthrough and recovery steps live in `docs/DEMO_RUNBOOK.md`.
+- AGPL/process review guidance lives in `docs/AGPL_COMPLIANCE_CHECKLIST.md`.
 - Recommended demo startup:
   - `npm run dev:demo`
   - `npm run demo:preflight`

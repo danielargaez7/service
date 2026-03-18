@@ -8,6 +8,7 @@ import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { SelectModule } from 'primeng/select';
 import { ManagerAlertsService, ManagerAlertTier } from '../../core/manager-alerts.service';
+import { ReportFilterBarComponent } from '../../shared/report-filter-bar.component';
 
 type RiskSeverity = 'HIGH' | 'MEDIUM' | 'LOW';
 type RiskType = 'CDL_EXPIRED' | 'CDL_EXPIRING' | 'DOT_PHYSICAL_EXPIRED' | 'DOT_PHYSICAL_EXPIRING' | 'HOS_WARNING';
@@ -186,6 +187,7 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
   imports: [
     CommonModule,
     FormsModule,
+    ReportFilterBarComponent,
     CardModule,
     TableModule,
     TagModule,
@@ -237,25 +239,45 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
         </div>
       </div>
 
-      <!-- Filter Bar -->
-      <div class="filter-bar">
-        <p-select
-          [options]="riskTypeOptions"
-          [ngModel]="riskTypeFilter()"
-          (ngModelChange)="riskTypeFilter.set($event)"
-          placeholder="All Risk Types"
-          [showClear]="true"
-          styleClass="filter-dropdown"
-        />
-        <p-select
-          [options]="severityOptions"
-          [ngModel]="severityFilter()"
-          (ngModelChange)="severityFilter.set($event)"
-          placeholder="All Severities"
-          [showClear]="true"
-          styleClass="filter-dropdown"
-        />
-      </div>
+      <app-report-filter-bar
+        [preset]="datePreset()"
+        [presetOptions]="presetOptions"
+        [searchTerm]="searchTerm()"
+        searchPlaceholder="Search driver or employee ID..."
+        [status]="severityFilter()"
+        [statusOptions]="severityOptions"
+        [dateFrom]="dateFrom()"
+        [dateTo]="dateTo()"
+        primaryActionLabel="Export"
+        secondaryActionLabel="View Queue"
+        tertiaryActionLabel="Reset"
+        (presetChange)="datePreset.set($event)"
+        (searchTermChange)="searchTerm.set($event)"
+        (statusChange)="severityFilter.set($event)"
+        (dateFromChange)="dateFrom.set($event)"
+        (dateToChange)="dateTo.set($event)"
+        (primaryAction)="exportManifestCsv()"
+        (secondaryAction)="submitPendingManifests()"
+        (tertiaryAction)="resetFilters()"
+      />
+
+      <section class="hos-board">
+        @for (risk of hosRisks(); track risk.id) {
+          <article class="hos-card" [class.critical]="(risk.hoursRemaining ?? 0) <= 4">
+            <div class="hos-header">
+              <div>
+                <strong>{{ risk.employeeName }}</strong>
+                <span>{{ risk.employeeId }} · {{ risk.hoursRemaining }}h remaining</span>
+              </div>
+              <span class="hos-status">{{ (risk.hoursRemaining ?? 0) <= 4 ? 'Critical window' : 'Watchlist' }}</span>
+            </div>
+            <div class="hos-track">
+              <div class="hos-fill" [style.width.%]="hosUsagePercent(risk)"></div>
+            </div>
+            <p>{{ risk.details }}</p>
+          </article>
+        }
+      </section>
 
       <section class="manifest-panel">
         <div class="manifest-panel-header">
@@ -501,19 +523,70 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
     .summary-card.low .card-icon { background: var(--sc-success-1); color: var(--sc-success-3); }
     .summary-card.low .card-value { color: var(--sc-success-4); }
 
-    /* Filter Bar */
-    .filter-bar {
-      display: flex;
+    .hos-board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: var(--sc-space-4);
-      margin-bottom: var(--sc-space-4);
-      flex-wrap: wrap;
-      background: var(--sc-card-bg);
-      padding: var(--sc-space-4) var(--sc-space-5);
-      border-radius: var(--sc-radius-md);
-      border: 1px solid var(--sc-border);
+      margin-bottom: var(--sc-space-5);
     }
-    :host ::ng-deep .filter-dropdown {
-      min-width: 200px;
+    .hos-card {
+      background: var(--sc-card-bg);
+      border: 1px solid var(--sc-border);
+      border-radius: var(--sc-radius-lg);
+      padding: var(--sc-space-4);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .hos-card.critical {
+      border-color: rgba(228, 90, 78, 0.3);
+      box-shadow: 0 12px 32px rgba(228, 90, 78, 0.08);
+    }
+    .hos-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .hos-header div {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .hos-header strong {
+      color: var(--sc-text-primary);
+    }
+    .hos-header span,
+    .hos-card p {
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+      margin: 0;
+    }
+    .hos-status {
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      color: var(--sc-warning-4);
+      background: var(--sc-warning-1);
+      border: 1px solid var(--sc-warning-2);
+      border-radius: var(--sc-radius-full);
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+    .hos-card.critical .hos-status {
+      color: var(--sc-danger-4);
+      background: var(--sc-danger-1);
+      border-color: rgba(228, 90, 78, 0.2);
+    }
+    .hos-track {
+      height: 10px;
+      border-radius: var(--sc-radius-full);
+      background: var(--sc-gray-1);
+      overflow: hidden;
+    }
+    .hos-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--sc-success-3) 0%, var(--sc-warning-3) 70%, var(--sc-danger-3) 100%);
     }
 
     .manifest-panel {
@@ -688,10 +761,10 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
 
     @media (max-width: 1024px) {
       .summary-cards { grid-template-columns: repeat(2, 1fr); }
+      .hos-board { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
       .summary-cards { grid-template-columns: 1fr; }
-      .filter-bar { flex-direction: column; }
     }
   `],
 })
@@ -701,8 +774,12 @@ export class CompliancePage {
     MOCK_RISKS.map((r) => ({ ...r, severityOrder: this.severityToOrder(r.severity) }))
   );
   manifestRecords = signal<ManifestRecord[]>(MOCK_MANIFESTS);
+  searchTerm = signal('');
   riskTypeFilter = signal<string | null>(null);
   severityFilter = signal<string | null>(null);
+  datePreset = signal('7d');
+  dateFrom = signal('');
+  dateTo = signal('');
 
   riskTypeOptions = [
     { label: 'CDL Expired', value: 'CDL_EXPIRED' },
@@ -717,11 +794,24 @@ export class CompliancePage {
     { label: 'Medium', value: 'MEDIUM' },
     { label: 'Low', value: 'LOW' },
   ];
+  presetOptions = [
+    { label: 'Last 7 Days', value: '7d' },
+    { label: 'Last 30 Days', value: '30d' },
+    { label: 'This Quarter', value: 'quarter' },
+  ];
 
   filteredRisks = computed(() => {
     let result = this.risks();
+    const search = this.searchTerm().trim().toLowerCase();
     const type = this.riskTypeFilter();
     const severity = this.severityFilter();
+    if (search) {
+      result = result.filter(
+        (risk) =>
+          risk.employeeName.toLowerCase().includes(search) ||
+          risk.employeeId.toLowerCase().includes(search)
+      );
+    }
     if (type) result = result.filter((r) => r.riskType === type);
     if (severity) result = result.filter((r) => r.severity === severity);
     return result;
@@ -739,6 +829,12 @@ export class CompliancePage {
   );
   acceptedManifests = computed(() =>
     this.manifestRecords().filter((record) => record.status === 'ACCEPTED')
+  );
+  hosRisks = computed(() =>
+    this.filteredRisks()
+      .filter((risk) => risk.riskType === 'HOS_WARNING')
+      .sort((left, right) => (left.hoursRemaining ?? 999) - (right.hoursRemaining ?? 999))
+      .slice(0, 3)
   );
 
   constructor(private readonly alerts: ManagerAlertsService) {}
@@ -759,12 +855,26 @@ export class CompliancePage {
     return RISK_TYPE_ICONS[type];
   }
 
+  hosUsagePercent(risk: ComplianceRisk): number {
+    const hoursRemaining = risk.hoursRemaining ?? 10;
+    return Math.max(8, Math.min(100, ((10 - hoursRemaining) / 10) * 100));
+  }
+
   getSeverityColor(severity: RiskSeverity): string {
     switch (severity) {
       case 'HIGH': return '#ef4444';
       case 'MEDIUM': return '#f59e0b';
       case 'LOW': return '#22c55e';
     }
+  }
+
+  resetFilters(): void {
+    this.searchTerm.set('');
+    this.riskTypeFilter.set(null);
+    this.severityFilter.set(null);
+    this.datePreset.set('7d');
+    this.dateFrom.set('');
+    this.dateTo.set('');
   }
 
   getSeveritySeverity(severity: RiskSeverity): 'danger' | 'warn' | 'success' {

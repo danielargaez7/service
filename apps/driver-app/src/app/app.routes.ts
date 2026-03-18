@@ -8,6 +8,12 @@ export const appRoutes: Route[] = [
       import('./features/auth/login.page').then((m) => m.LoginPage),
   },
   {
+    path: 'kiosk-clock',
+    loadComponent: () =>
+      import('./features/clock/kiosk-clock.page').then((m) => m.KioskClockPage),
+    canActivate: [authGuard],
+  },
+  {
     path: 'tabs',
     loadComponent: () =>
       import('./layout/tabs.page').then((m) => m.TabsPage),

@@ -14,12 +14,26 @@ interface FilterOption {
   template: `
     <div class="sc-filter-bar">
       <div class="sc-filter-primary">
+        @if (presetOptions.length > 0) {
+          <label class="sr-only" for="sc-filter-preset">Preset</label>
+          <select
+            id="sc-filter-preset"
+            class="sc-filter-select sc-filter-preset"
+            [ngModel]="preset"
+            (ngModelChange)="presetChange.emit($event)"
+          >
+            @for (option of presetOptions; track option.value) {
+              <option [ngValue]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        }
+
         <label class="sr-only" for="sc-filter-search">Search</label>
         <input
           id="sc-filter-search"
           type="text"
           class="sc-filter-input"
-          placeholder="Search employee..."
+          [placeholder]="searchPlaceholder"
           [ngModel]="searchTerm"
           (ngModelChange)="searchTermChange.emit($event)"
         />
@@ -59,6 +73,11 @@ interface FilterOption {
       </div>
 
       <div class="sc-filter-actions">
+        @if (tertiaryActionLabel) {
+          <button type="button" class="sc-filter-action-btn secondary" (click)="tertiaryAction.emit()">
+            {{ tertiaryActionLabel }}
+          </button>
+        }
         <button type="button" class="sc-filter-action-btn" (click)="primaryAction.emit()">
           {{ primaryActionLabel }}
         </button>
@@ -112,6 +131,10 @@ interface FilterOption {
       min-width: 170px;
     }
 
+    .sc-filter-preset {
+      min-width: 140px;
+    }
+
     .sc-filter-date-range {
       display: flex;
       align-items: center;
@@ -142,6 +165,10 @@ interface FilterOption {
       color: var(--sc-orange);
     }
 
+    .sc-filter-action-btn.secondary {
+      background: var(--sc-gray-1);
+    }
+
     .sr-only {
       position: absolute;
       width: 1px;
@@ -156,19 +183,24 @@ interface FilterOption {
   `],
 })
 export class ReportFilterBarComponent {
+  @Input() preset = '';
+  @Input() presetOptions: FilterOption[] = [];
   @Input() searchTerm = '';
+  @Input() searchPlaceholder = 'Search employee...';
   @Input() status: string | null = null;
   @Input() dateFrom = '';
   @Input() dateTo = '';
   @Input() statusOptions: FilterOption[] = [];
   @Input() primaryActionLabel = 'Export';
   @Input() secondaryActionLabel = 'Columns';
+  @Input() tertiaryActionLabel: string | null = null;
 
+  @Output() readonly presetChange = new EventEmitter<string>();
   @Output() readonly searchTermChange = new EventEmitter<string>();
   @Output() readonly statusChange = new EventEmitter<string | null>();
   @Output() readonly dateFromChange = new EventEmitter<string>();
   @Output() readonly dateToChange = new EventEmitter<string>();
   @Output() readonly primaryAction = new EventEmitter<void>();
   @Output() readonly secondaryAction = new EventEmitter<void>();
+  @Output() readonly tertiaryAction = new EventEmitter<void>();
 }
-

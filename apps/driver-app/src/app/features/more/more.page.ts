@@ -63,6 +63,13 @@ import { AuthService } from '../../core/auth.service';
             <p>See earned badges, locked goals, and how close you are to the next rank.</p>
           </ion-label>
         </ion-item>
+
+        <ion-item lines="full" routerLink="/kiosk-clock" detail="true">
+          <ion-label>
+            <h3>Kiosk Clock</h3>
+            <p>Open the shared tablet-style clock station for yard or office handoff use.</p>
+          </ion-label>
+        </ion-item>
       </ion-list>
 
       <ion-button expand="block" fill="outline" color="danger" (click)="auth.logout()">
