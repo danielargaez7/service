@@ -150,29 +150,29 @@ interface QueryResult {
     }
 
     .nlq-header {
-      margin-bottom: 24px;
+      margin-bottom: var(--sc-space-5);
     }
 
     .nlq-header h2 {
-      font-size: 1.5rem;
+      font-size: var(--sc-text-2xl);
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       margin: 0 0 4px;
     }
 
     .header-subtitle {
-      color: var(--sc-text-secondary, #64748b);
-      font-size: 0.9rem;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
       margin: 0;
     }
 
     /* ── Query Input ── */
     .query-section {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid var(--sc-border, #e2e6ed);
-      padding: 24px;
-      margin-bottom: 24px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
+      border: 1px solid var(--sc-border);
+      padding: var(--sc-space-5);
+      margin-bottom: var(--sc-space-5);
     }
 
     .query-input-row {
@@ -202,7 +202,7 @@ interface QueryResult {
     .suggestions-label {
       font-size: 0.78rem;
       font-weight: 600;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
@@ -222,14 +222,14 @@ interface QueryResult {
     .thinking-state {
       text-align: center;
       padding: 48px 20px;
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid var(--sc-border, #e2e6ed);
-      margin-bottom: 24px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
+      border: 1px solid var(--sc-border);
+      margin-bottom: var(--sc-space-5);
     }
 
     .thinking-state p {
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       font-size: 0.95rem;
       margin: 12px 0 0;
     }
@@ -244,7 +244,7 @@ interface QueryResult {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: var(--sc-accent, #4f8cff);
+      background: var(--sc-orange);
       animation: dotPulse 1.4s ease-in-out infinite;
     }
 
@@ -285,14 +285,14 @@ interface QueryResult {
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      background: #eff6ff;
+      background: var(--sc-info-1);
       border-radius: 10px;
       padding: 14px 18px;
-      border: 1px solid #bfdbfe;
+      border: 1px solid var(--sc-info-2);
     }
 
     .explanation i {
-      color: #3b82f6;
+      color: var(--sc-info-3);
       font-size: 1.1rem;
       margin-top: 2px;
       flex-shrink: 0;
@@ -301,21 +301,21 @@ interface QueryResult {
     .explanation p {
       margin: 0;
       font-size: 0.9rem;
-      color: #1e40af;
+      color: var(--sc-info-4);
       line-height: 1.5;
     }
 
     .chart-container, .table-container {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid var(--sc-border, #e2e6ed);
-      padding: 20px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
+      border: 1px solid var(--sc-border);
+      padding: var(--sc-space-5);
     }
 
     .kpi-display {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid var(--sc-border, #e2e6ed);
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
+      border: 1px solid var(--sc-border);
       padding: 48px 20px;
       text-align: center;
       display: flex;
@@ -327,14 +327,20 @@ interface QueryResult {
     .kpi-big-value {
       font-size: 3.5rem;
       font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       line-height: 1.1;
     }
 
     .kpi-big-label {
       font-size: 1rem;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       font-weight: 500;
+    }
+
+    :host-context(body.dark-mode) .sql-block {
+      background: #0f172a;
+      color: #e5e7eb;
+      border: 1px solid var(--sc-border);
     }
 
     /* ── Responsive ── */

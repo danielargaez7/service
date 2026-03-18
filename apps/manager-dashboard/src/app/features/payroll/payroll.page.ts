@@ -8,9 +8,8 @@ import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectButtonModule } from 'primeng/selectbutton';
-import { ToastModule } from 'primeng/toast';
 import { MessageModule } from 'primeng/message';
-import { MessageService } from 'primeng/api';
+import { ManagerAlertsService } from '../../core/manager-alerts.service';
 
 interface FlaggedItem {
   id: number;
@@ -37,14 +36,11 @@ interface WhatIfScenario {
     SelectModule,
     InputNumberModule,
     SelectButtonModule,
-    ToastModule,
     MessageModule,
   ],
-  providers: [MessageService],
   selector: 'app-payroll',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p-toast />
     <div class="payroll">
       <div class="payroll-header">
         <h2>Payroll Preview & What-If Simulator</h2>
@@ -269,29 +265,29 @@ interface WhatIfScenario {
     }
 
     .payroll-header {
-      margin-bottom: 24px;
+      margin-bottom: var(--sc-space-5);
     }
 
     .payroll-header h2 {
-      font-size: 1.5rem;
+      font-size: var(--sc-text-2xl);
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       margin: 0 0 4px;
     }
 
     .header-subtitle {
-      color: var(--sc-text-secondary, #64748b);
-      font-size: 0.9rem;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
       margin: 0;
     }
 
     /* ── Sections ── */
     .section {
-      background: #fff;
-      border-radius: 12px;
-      border: 1px solid var(--sc-border, #e2e6ed);
-      padding: 24px;
-      margin-bottom: 24px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
+      border: 1px solid var(--sc-border);
+      padding: var(--sc-space-5);
+      margin-bottom: var(--sc-space-5);
     }
 
     .section-title-row {
@@ -306,7 +302,7 @@ interface WhatIfScenario {
     .section-title-row h3 {
       font-size: 1.1rem;
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       margin: 0;
       display: flex;
       align-items: center;
@@ -314,7 +310,7 @@ interface WhatIfScenario {
     }
 
     .section-title-row h3 i {
-      color: var(--sc-accent, #4f8cff);
+      color: var(--sc-orange);
     }
 
     .section-actions {
@@ -327,14 +323,14 @@ interface WhatIfScenario {
     .summary-strip {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      gap: 12px;
-      margin-bottom: 24px;
+      gap: var(--sc-space-3);
+      margin-bottom: var(--sc-space-5);
     }
 
     .summary-card {
-      background: #f8fafc;
-      border-radius: 10px;
-      padding: 16px;
+      background: var(--sc-gray-1);
+      border-radius: var(--sc-radius-md);
+      padding: var(--sc-space-4);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -345,12 +341,12 @@ interface WhatIfScenario {
     .summary-value {
       font-size: 1.4rem;
       font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
     }
 
     .summary-label {
       font-size: 0.72rem;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       font-weight: 500;
       text-align: center;
     }
@@ -371,14 +367,14 @@ interface WhatIfScenario {
       margin: 0;
       font-size: 0.95rem;
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
     .flagged-header h4 i {
-      color: #f59e0b;
+      color: var(--sc-warning-3);
     }
 
     .resolved-row {
@@ -387,7 +383,7 @@ interface WhatIfScenario {
 
     .resolved-badge {
       font-size: 0.8rem;
-      color: #059669;
+      color: var(--sc-success-3);
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -416,23 +412,23 @@ interface WhatIfScenario {
     .sim-field label {
       font-size: 0.8rem;
       font-weight: 600;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
     .sim-results-panel {
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 24px;
-      border: 1px solid var(--sc-border, #e2e6ed);
+      background: var(--sc-gray-1);
+      border-radius: var(--sc-radius-lg);
+      padding: var(--sc-space-5);
+      border: 1px solid var(--sc-border);
     }
 
     .sim-results-panel h4 {
       margin: 0 0 16px;
       font-size: 1rem;
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
     }
 
     .sim-results-grid {
@@ -443,18 +439,18 @@ interface WhatIfScenario {
     }
 
     .sim-result-card {
-      background: #fff;
-      border-radius: 8px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-md);
       padding: 14px;
       display: flex;
       flex-direction: column;
       gap: 4px;
-      border: 1px solid var(--sc-border, #e2e6ed);
+      border: 1px solid var(--sc-border);
     }
 
     .sim-result-label {
       font-size: 0.72rem;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       font-weight: 500;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -463,7 +459,7 @@ interface WhatIfScenario {
     .sim-result-value {
       font-size: 1.25rem;
       font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
     }
 
     .sim-result-delta {
@@ -472,24 +468,24 @@ interface WhatIfScenario {
     }
 
     .delta-positive {
-      color: #059669;
+      color: var(--sc-success-3);
     }
 
     .delta-negative {
-      color: #dc2626;
+      color: var(--sc-danger-3);
     }
 
     .sim-cashflow {
-      background: #fff;
-      border-radius: 10px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-md);
       padding: 18px;
       text-align: center;
-      border: 2px dashed var(--sc-border, #e2e6ed);
+      border: 2px dashed var(--sc-border);
     }
 
     .cashflow-label {
       font-size: 0.8rem;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       font-weight: 500;
       margin-bottom: 4px;
     }
@@ -571,7 +567,7 @@ export class PayrollPage {
 
   cashFlowImpact = signal(0);
 
-  constructor(private messageService: MessageService) {
+  constructor(private alerts: ManagerAlertsService) {
     this.recalculate();
   }
 
@@ -614,11 +610,11 @@ export class PayrollPage {
       this.auditLoading.set(false);
       this.auditRan.set(true);
 
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Audit Complete',
-        detail: 'Pre-payroll audit finished. 3 items flagged for review.',
-      });
+      this.alerts.high(
+        'Audit complete',
+        'Pre-payroll audit finished. Three items are flagged for manager review.',
+        '/payroll'
+      );
     }, 1500);
   }
 
@@ -634,31 +630,30 @@ export class PayrollPage {
     this.flaggedItems.update(items =>
       items.map(i => (i.id === item.id ? { ...i, resolved: true } : i))
     );
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Resolved',
-      detail: `Issue for ${item.employeeName} marked as resolved.`,
-    });
+    this.alerts.low(
+      'Issue resolved',
+      `Issue for ${item.employeeName} was marked as resolved.`,
+      '/payroll'
+    );
   }
 
   dismissItem(item: FlaggedItem): void {
     this.flaggedItems.update(items =>
       items.map(i => (i.id === item.id ? { ...i, resolved: true } : i))
     );
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Dismissed',
-      detail: `Issue for ${item.employeeName} dismissed.`,
-    });
+    this.alerts.low(
+      'Issue dismissed',
+      `Issue for ${item.employeeName} was dismissed from the audit queue.`,
+      '/payroll'
+    );
   }
 
   exportToQuickBooks(): void {
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Export Successful',
-      detail: 'Payroll data exported to QuickBooks. 20 employee records sent.',
-      life: 4000,
-    });
+    this.alerts.low(
+      'Export successful',
+      'Payroll data exported to QuickBooks. Twenty employee records were sent.',
+      '/payroll'
+    );
   }
 
   onScenarioChange(): void {

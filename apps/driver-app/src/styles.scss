@@ -10,33 +10,58 @@
 @import '@ionic/angular/css/display.css';
 
 :root {
-  --sc-primary: #1a237e;
-  --sc-primary-light: #534bae;
-  --sc-accent: #ff6f00;
-  --sc-success: #2e7d32;
-  --sc-danger: #c62828;
-  --sc-warning: #f9a825;
-  --sc-bg: #fafafa;
+  --sc-orange: #ff4c00;
+  --sc-orange-light: #ffdbcc;
+  --sc-orange-dark: #a12d02;
+  --sc-blue: #2583e3;
+  --sc-success: #32a206;
+  --sc-danger: #e45a4e;
+  --sc-warning: #e56f1a;
+  --sc-bg: #f8f9fc;
   --sc-surface: #ffffff;
-  --sc-text: #212121;
-  --sc-text-secondary: #757575;
+  --sc-text: #1e293b;
+  --sc-text-secondary: #64748b;
+  --sc-border: #e2e6ed;
+  --sc-touch-min: 48px;
+  --sc-touch-comfortable: 56px;
+  --sc-touch-large: 72px;
 
-  --ion-color-primary: var(--sc-primary);
-  --ion-color-secondary: var(--sc-accent);
+  --ion-color-primary: var(--sc-orange);
+  --ion-color-secondary: var(--sc-blue);
   --ion-color-success: var(--sc-success);
   --ion-color-danger: var(--sc-danger);
   --ion-color-warning: var(--sc-warning);
   --ion-background-color: var(--sc-bg);
+  --ion-text-color: var(--sc-text);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Source Sans Pro', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 // Large tap targets for gloved hands
 ion-button {
   --border-radius: 12px;
-  min-height: 48px;
+  min-height: var(--sc-touch-min);
   font-weight: 600;
+}
+
+ion-card {
+  border: 1px solid var(--sc-border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.field-mode {
+  ion-button { min-height: 56px; }
+  ion-item { min-height: 64px; }
+  ion-tab-button { min-height: 72px; }
+  --ion-font-size-base: 18px;
+  ion-card-title { font-size: 22px; }
+  --ion-background-color: #ffffff;
+  --ion-text-color: #000000;
+  --ion-color-step-150: #000000;
+
+  .sc-advanced-feature { display: none !important; }
+  .sc-field-essential { display: block !important; }
 }

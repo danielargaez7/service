@@ -1,15 +1,18 @@
-import { Component, ChangeDetectionStrategy, AfterViewInit, OnDestroy, NgZone } from '@angular/core';
+import { Component, ChangeDetectionStrategy, AfterViewInit, OnDestroy, OnInit, NgZone, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import * as L from 'leaflet';
+import { ManagerAlertsService } from '../../core/manager-alerts.service';
 
 interface KpiCard {
   label: string;
   value: string;
-  icon: string;
+  subtext: string;
   trend: string;
-  trendUp: boolean;
-  color: string;
+  trendDirection: 'up' | 'down' | 'neutral';
+  status: 'normal' | 'warning' | 'danger';
+  icon: string;
 }
 
 interface DriverMarker {
@@ -29,6 +32,12 @@ interface OtAlert {
   severity: 'amber' | 'orange' | 'red';
 }
 
+interface RiskBoardItem {
+  label: string;
+  count: string;
+  tone: 'critical' | 'warning' | 'success';
+}
+
 @Component({
   standalone: true,
   imports: [CommonModule, CardModule],
@@ -36,28 +45,70 @@ interface OtAlert {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="dashboard">
+      @if (showCriticalBanner) {
+        <div class="compliance-banner">
+          <div class="compliance-banner-copy">
+            <strong>{{ primaryCriticalAlert()?.title ?? 'Immediate compliance attention required' }}</strong>
+            <span class="banner-message">
+              {{ primaryCriticalAlert()?.message }}
+            </span>
+            @if (criticalAlerts().length > 1) {
+              <span class="banner-meta">
+                {{ criticalAlerts().length - 1 }} additional critical
+                {{ criticalAlerts().length - 1 === 1 ? 'issue is' : 'issues are' }}
+                still open.
+              </span>
+            }
+          </div>
+          <div class="banner-actions">
+            <button class="banner-review-btn" type="button" (click)="reviewCriticalAlert()">
+              {{ primaryCriticalActionLabel() }}
+            </button>
+            <button class="banner-dismiss-btn" type="button" (click)="dismissCriticalBanner()">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      }
+
       <div class="dashboard-header">
-        <h2>Operations Dashboard</h2>
-        <p class="header-subtitle">Real-time workforce overview</p>
+        <h2>Good Morning, Jacob</h2>
+        <p class="header-subtitle">Tuesday March 17 · Denver Depot · Real-time workforce overview</p>
       </div>
 
       <!-- KPI Strip -->
       <div class="kpi-strip">
-        @for (kpi of kpiCards; track kpi.label) {
-          <div class="kpi-card" [style.--kpi-color]="kpi.color">
-            <div class="kpi-icon-wrapper">
-              <i [class]="'pi ' + kpi.icon"></i>
-            </div>
-            <div class="kpi-content">
-              <span class="kpi-value">{{ kpi.value }}</span>
-              <span class="kpi-label">{{ kpi.label }}</span>
-            </div>
-            <div class="kpi-trend" [class.trend-up]="kpi.trendUp" [class.trend-down]="!kpi.trendUp">
-              <i class="pi" [class.pi-arrow-up]="kpi.trendUp" [class.pi-arrow-down]="!kpi.trendUp"></i>
+        @for (kpi of kpiCards(); track kpi.label) {
+          <div class="kpi-card" [class.warning]="kpi.status === 'warning'" [class.danger]="kpi.status === 'danger'">
+            <span class="kpi-label">{{ kpi.label }}</span>
+            <span class="kpi-value kpi-number">{{ kpi.value }}</span>
+            <span class="kpi-sub">{{ kpi.subtext }}</span>
+            <div class="kpi-trend" [class.up]="kpi.trendDirection === 'up'" [class.down]="kpi.trendDirection === 'down'">
+              <i class="pi" [class.pi-arrow-up]="kpi.trendDirection === 'up'" [class.pi-arrow-down]="kpi.trendDirection === 'down'" [class.pi-minus]="kpi.trendDirection === 'neutral'"></i>
               {{ kpi.trend }}
             </div>
           </div>
         }
+      </div>
+
+      <div class="quick-actions">
+        <button type="button" class="quick-action-btn">
+          <i class="pi pi-check-circle"></i>
+          Approve Timesheets
+          <span class="quick-action-badge">12</span>
+        </button>
+        <button type="button" class="quick-action-btn">
+          <i class="pi pi-dollar"></i>
+          Run Payroll
+        </button>
+        <button type="button" class="quick-action-btn">
+          <i class="pi pi-calendar"></i>
+          View Schedule
+        </button>
+        <button type="button" class="quick-action-btn">
+          <i class="pi pi-download"></i>
+          Export Report
+        </button>
       </div>
 
       <!-- Content Grid -->
@@ -76,60 +127,50 @@ interface OtAlert {
           </div>
         </div>
 
-        <!-- OT Alert Bar -->
+        <!-- Compliance Risk Board -->
         <div class="panel panel-alerts">
           <div class="panel-header">
-            <h3><i class="pi pi-exclamation-triangle"></i> Overtime Alerts</h3>
-            <span class="alert-count">{{ otAlerts.length }} active</span>
+            <h3><i class="pi pi-shield"></i> Compliance Risk Board</h3>
+            <span class="alert-count">{{ highPriorityAlerts().length }} open</span>
           </div>
           <div class="panel-body">
-            <div class="ot-alert-list">
-              @for (alert of otAlerts; track alert.name) {
-                <div class="ot-alert-item" [class]="'severity-' + alert.severity">
-                  <div class="ot-alert-indicator"></div>
-                  <div class="ot-alert-info">
-                    <span class="ot-alert-name">{{ alert.name }}</span>
-                    <span class="ot-alert-job">{{ alert.jobType }}</span>
-                  </div>
-                  <div class="ot-alert-hours">
-                    <span class="ot-hours-value">{{ alert.hours }}h</span>
-                    <span class="ot-hours-label">this week</span>
-                  </div>
+            <div class="risk-board-list">
+              @for (item of riskBoard(); track item.label) {
+                <div class="risk-board-item" [class]="'risk-' + item.tone">
+                  <span class="risk-count">{{ item.count }}</span>
+                  <span class="risk-label">{{ item.label }}</span>
                 </div>
               }
             </div>
           </div>
         </div>
 
-        <!-- Quick Stats -->
+        <!-- Pending Approvals -->
         <div class="panel panel-stats">
           <div class="panel-header">
-            <h3><i class="pi pi-chart-line"></i> Today at a Glance</h3>
+            <h3><i class="pi pi-check-circle"></i> Timesheets Pending Approval</h3>
+            <button class="mini-action-btn" type="button">Approve All</button>
           </div>
           <div class="panel-body">
-            <div class="stat-row">
-              <span class="stat-label">Clocked In</span>
-              <span class="stat-value">42 / 48</span>
+            <div class="pending-approval-card">
+              <span class="pending-count">12 pending</span>
+              <p>8 clean entries ready now, 4 require manager review before payroll close.</p>
             </div>
-            <div class="stat-row">
-              <span class="stat-label">Late Arrivals</span>
-              <span class="stat-value stat-warn">3</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">No Shows</span>
-              <span class="stat-value stat-danger">1</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">On Break</span>
-              <span class="stat-value">7</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Avg. Hours Today</span>
-              <span class="stat-value">6.4h</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Geofence Violations</span>
-              <span class="stat-value stat-danger">2</span>
+          </div>
+        </div>
+
+        <div class="panel panel-trend">
+          <div class="panel-header">
+            <h3><i class="pi pi-chart-line"></i> Labor Cost Trend</h3>
+          </div>
+          <div class="panel-body">
+            <div class="trend-bars">
+              @for (bar of laborTrend; track bar.day) {
+                <div class="trend-bar-group">
+                  <div class="trend-bar" [style.height.%]="bar.percent"></div>
+                  <span>{{ bar.day }}</span>
+                </div>
+              }
             </div>
           </div>
         </div>
@@ -138,128 +179,194 @@ interface OtAlert {
   `,
   styles: [`
     .dashboard {
-      max-width: 1400px;
+      max-width: 1480px;
       margin: 0 auto;
     }
 
+    .compliance-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sc-space-4);
+      background: var(--sc-warning-1);
+      border: 1px solid var(--sc-warning-2);
+      border-radius: var(--sc-radius-md);
+      padding: var(--sc-space-3) var(--sc-space-4);
+      margin-bottom: var(--sc-space-4);
+      color: var(--sc-warning-4);
+    }
+
+    .compliance-banner-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: var(--sc-text-sm);
+    }
+
+    .banner-message {
+      color: var(--sc-warning-4);
+    }
+
+    .banner-meta {
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-xs);
+      font-weight: 600;
+    }
+
+    .banner-dismiss-btn {
+      border: 1px solid var(--sc-warning-2);
+      background: #fff;
+      color: var(--sc-warning-4);
+      border-radius: var(--sc-radius-md);
+      padding: 6px 10px;
+      font-size: var(--sc-text-xs);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .banner-actions {
+      display: flex;
+      gap: var(--sc-space-2);
+      flex-shrink: 0;
+    }
+
+    .banner-review-btn {
+      border: 1px solid var(--sc-orange);
+      background: var(--sc-orange);
+      color: #fff;
+      border-radius: var(--sc-radius-md);
+      padding: 6px 10px;
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
     .dashboard-header {
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .dashboard-header h2 {
-      font-size: 1.5rem;
+      font-size: 1.9rem;
       font-weight: 700;
       color: var(--sc-text-primary, #1e293b);
-      margin: 0 0 4px;
+      margin: 0 0 6px;
+      letter-spacing: -0.03em;
     }
 
     .header-subtitle {
       color: var(--sc-text-secondary, #64748b);
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       margin: 0;
     }
 
     /* -- KPI Strip -- */
     .kpi-strip {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sc-space-3);
+      margin-bottom: var(--sc-space-5);
+    }
+
+    .quick-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sc-space-2);
+      border: 1px solid var(--sc-border);
+      border-radius: var(--sc-radius-md);
+      background: var(--sc-card-bg);
+      color: var(--sc-gray-4);
+      font-size: var(--sc-text-sm);
+      font-weight: 600;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .quick-action-btn i {
+      color: var(--sc-orange);
+    }
+
+    .quick-action-badge {
+      margin-left: var(--sc-space-2);
+      border-radius: var(--sc-radius-full);
+      padding: 2px 8px;
+      font-size: var(--sc-text-xs);
+      color: var(--sc-warning-4);
+      background: var(--sc-warning-1);
+      border: 1px solid var(--sc-warning-2);
     }
 
     .kpi-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      border: 1px solid var(--sc-border, #e2e6ed);
-      position: relative;
-      overflow: hidden;
-      transition: box-shadow 0.15s ease;
-    }
-
-    .kpi-card:hover {
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    }
-
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 4px;
-      height: 100%;
-      background: var(--kpi-color);
-    }
-
-    .kpi-icon-wrapper {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: color-mix(in srgb, var(--kpi-color) 12%, transparent);
-      color: var(--kpi-color);
-      font-size: 1.2rem;
-      flex-shrink: 0;
-    }
-
-    .kpi-content {
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
+      padding: var(--sc-space-5);
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      flex: 1;
-      min-width: 0;
+      gap: 8px;
+      border: 1px solid var(--sc-border, #e2e6ed);
+      border-left: 4px solid var(--sc-success-3);
+      position: relative;
+      transition: box-shadow 0.15s ease, transform 0.15s ease;
+      min-height: 154px;
     }
 
-    .kpi-value {
-      font-size: 1.6rem;
-      font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
-      line-height: 1.2;
-    }
-
+    .kpi-card.warning { border-left-color: var(--sc-warning-3); }
+    .kpi-card.danger { border-left-color: var(--sc-danger-3); }
+    .kpi-card:hover { box-shadow: var(--sc-shadow-md); transform: translateY(-1px); }
     .kpi-label {
-      font-size: 0.8rem;
-      color: var(--sc-text-secondary, #64748b);
-      font-weight: 500;
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--sc-gray-3);
+      text-transform: uppercase;
     }
-
+    .kpi-value {
+      color: var(--sc-sidebar-bg);
+      margin: var(--sc-space-2) 0;
+      line-height: 1;
+    }
+    .kpi-sub {
+      font-size: var(--sc-text-sm);
+      color: var(--sc-gray-3);
+    }
     .kpi-trend {
-      font-size: 0.75rem;
+      margin-top: auto;
+      font-size: var(--sc-text-sm);
       font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 20px;
-      white-space: nowrap;
-      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-
-    .trend-up {
-      background: #ecfdf5;
-      color: #059669;
+    .kpi-trend.up {
+      background: var(--sc-success-1);
+      color: var(--sc-success-4);
     }
-
-    .trend-down {
-      background: #fef2f2;
-      color: #dc2626;
+    .kpi-trend.down {
+      background: var(--sc-danger-1);
+      color: var(--sc-danger-4);
     }
 
     /* -- Content Grid -- */
     .content-grid {
       display: grid;
-      grid-template-columns: 3fr 2fr;
+      grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
       grid-template-rows: auto auto;
       gap: 20px;
+      align-items: start;
     }
 
     .panel {
-      background: #fff;
-      border-radius: 12px;
+      background: var(--sc-card-bg);
+      border-radius: 16px;
       border: 1px solid var(--sc-border, #e2e6ed);
       overflow: hidden;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
     }
 
     .panel-map {
@@ -274,6 +381,11 @@ interface OtAlert {
     }
 
     .panel-stats {
+      grid-column: 1 / 2;
+      grid-row: 2 / 3;
+    }
+
+    .panel-trend {
       grid-column: 2 / 3;
       grid-row: 2 / 3;
     }
@@ -282,12 +394,12 @@ interface OtAlert {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 20px;
+      padding: 18px 20px;
       border-bottom: 1px solid var(--sc-border, #e2e6ed);
     }
 
     .panel-header h3 {
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 700;
       color: var(--sc-text-primary, #1e293b);
       margin: 0;
@@ -297,7 +409,7 @@ interface OtAlert {
     }
 
     .panel-header h3 i {
-      color: var(--sc-accent, #4f8cff);
+      color: var(--sc-orange);
     }
 
     .live-badge {
@@ -327,10 +439,10 @@ interface OtAlert {
     .alert-count {
       font-size: 0.75rem;
       font-weight: 600;
-      padding: 3px 10px;
-      background: #fef3c7;
-      color: #d97706;
-      border-radius: 20px;
+      padding: 4px 10px;
+      background: var(--sc-warning-1);
+      color: var(--sc-warning-4);
+      border-radius: 999px;
     }
 
     .panel-body {
@@ -344,122 +456,135 @@ interface OtAlert {
     /* -- Fleet Map -- */
     .fleet-map {
       width: 100%;
-      height: 460px;
+      height: 500px;
     }
 
-    /* -- OT Alert List -- */
-    .ot-alert-list {
+    .risk-board-list {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-    }
-
-    .ot-alert-item {
-      display: flex;
-      align-items: center;
       gap: 12px;
-      padding: 12px 14px;
-      border-radius: 10px;
-      background: #fafbfc;
-      border: 1px solid var(--sc-border, #e2e6ed);
-      transition: box-shadow 0.15s ease;
     }
-
-    .ot-alert-item:hover {
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .ot-alert-indicator {
-      width: 6px;
-      height: 36px;
-      border-radius: 3px;
-      flex-shrink: 0;
-    }
-
-    .severity-amber .ot-alert-indicator { background: #f59e0b; }
-    .severity-orange .ot-alert-indicator { background: #ea580c; }
-    .severity-red .ot-alert-indicator { background: #dc2626; }
-
-    .severity-amber { border-left: 3px solid #f59e0b; }
-    .severity-orange { border-left: 3px solid #ea580c; }
-    .severity-red { border-left: 3px solid #dc2626; }
-
-    .ot-alert-info {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .ot-alert-name {
-      font-size: 0.875rem;
-      font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
-    }
-
-    .ot-alert-job {
-      font-size: 0.75rem;
-      color: var(--sc-text-secondary, #64748b);
-    }
-
-    .ot-alert-hours {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      flex-shrink: 0;
-    }
-
-    .ot-hours-value {
-      font-size: 1rem;
-      font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
-    }
-
-    .severity-amber .ot-hours-value { color: #f59e0b; }
-    .severity-orange .ot-hours-value { color: #ea580c; }
-    .severity-red .ot-hours-value { color: #dc2626; }
-
-    .ot-hours-label {
-      font-size: 0.65rem;
-      color: var(--sc-text-secondary, #64748b);
-    }
-
-    /* -- Stats Panel -- */
-    .stat-row {
+    .risk-board-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #f1f5f9;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--sc-gray-1);
+      border: 1px solid var(--sc-border, #e2e6ed);
+    }
+    .risk-critical { border-left: 3px solid var(--sc-danger-3); }
+    .risk-warning { border-left: 3px solid var(--sc-warning-3); }
+    .risk-success { border-left: 3px solid var(--sc-success-3); }
+    .risk-count {
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+    .risk-label {
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
     }
 
-    .stat-row:last-child {
-      border-bottom: none;
+    .pending-approval-card {
+      border: 1px dashed var(--sc-border);
+      border-radius: var(--sc-radius-lg);
+      padding: var(--sc-space-5);
+      background: var(--sc-gray-1);
     }
-
-    .stat-label {
-      font-size: 0.875rem;
-      color: var(--sc-text-secondary, #64748b);
+    .pending-count {
+      display: block;
+      font-size: var(--sc-text-2xl);
+      font-weight: 800;
+      color: var(--sc-text-primary);
+      margin-bottom: 8px;
     }
-
-    .stat-value {
-      font-size: 0.95rem;
+    .pending-approval-card p {
+      margin: 0;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+    }
+    .mini-action-btn {
+      border: 1px solid var(--sc-border);
+      background: var(--sc-card-bg);
+      color: var(--sc-blue);
+      border-radius: var(--sc-radius-md);
+      padding: 6px 10px;
+      font-size: var(--sc-text-xs);
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      cursor: pointer;
+    }
+    .trend-bars {
+      height: 180px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .trend-bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-xs);
+    }
+    .trend-bar {
+      width: 100%;
+      max-width: 36px;
+      min-height: 28px;
+      border-radius: 10px 10px 4px 4px;
+      background: linear-gradient(180deg, var(--sc-orange-light), var(--sc-orange));
     }
 
-    .stat-warn {
-      color: #d97706;
+    :host-context(body.dark-mode) .kpi-card,
+    :host-context(body.dark-mode) .panel,
+    :host-context(body.dark-mode) .quick-action-btn {
+      box-shadow: none;
+      border-color: var(--sc-border);
     }
 
-    .stat-danger {
-      color: #dc2626;
+    :host-context(body.dark-mode) .kpi-value {
+      color: #f8fafc;
+    }
+
+    :host-context(body.dark-mode) .kpi-label,
+    :host-context(body.dark-mode) .kpi-sub,
+    :host-context(body.dark-mode) .header-subtitle,
+    :host-context(body.dark-mode) .risk-label {
+      color: #cbd5e1;
+    }
+
+    :host-context(body.dark-mode) .risk-board-item,
+    :host-context(body.dark-mode) .pending-approval-card {
+      background: #1f2430;
+    }
+
+    :host-context(body.dark-mode) .kpi-trend.up {
+      background: rgba(50, 162, 6, 0.2);
+      color: #bbf7d0;
+    }
+
+    :host-context(body.dark-mode) .kpi-trend.down {
+      background: rgba(228, 90, 78, 0.2);
+      color: #fecaca;
     }
 
     /* -- Responsive -- */
+    @media (max-width: 1280px) {
+      .content-grid {
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
+      }
+    }
+
     @media (max-width: 1024px) {
+      .dashboard-header h2 {
+        font-size: 1.65rem;
+      }
+
       .kpi-strip {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .content-grid {
@@ -473,13 +598,14 @@ interface OtAlert {
       }
 
       .panel-alerts,
-      .panel-stats {
+      .panel-stats,
+      .panel-trend {
         grid-column: 1;
         grid-row: auto;
       }
 
       .fleet-map {
-        height: 320px;
+        height: 360px;
       }
     }
 
@@ -489,48 +615,68 @@ interface OtAlert {
       }
 
       .kpi-trend {
-        display: none;
+        justify-self: start;
       }
     }
   `],
 })
-export class DashboardPage implements AfterViewInit, OnDestroy {
+export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
   private map: L.Map | null = null;
-
-  kpiCards: KpiCard[] = [
+  showCriticalBanner = true;
+  readonly criticalAlerts = computed(() =>
+    this.alerts.alerts().filter((alert) => alert.tier === 'critical')
+  );
+  readonly primaryCriticalAlert = computed(() => this.criticalAlerts()[0] ?? null);
+  readonly primaryCriticalActionLabel = computed(() => {
+    const route = this.primaryCriticalAlert()?.route ?? '/compliance';
+    if (route.includes('timesheets')) return 'Open Timesheets';
+    if (route.includes('payroll')) return 'Open Payroll';
+    if (route.includes('schedule')) return 'Open Schedule';
+    return 'Open Compliance';
+  });
+  readonly highPriorityAlerts = computed(() =>
+    this.alerts.alerts().filter(
+      (alert) => alert.tier === 'critical' || alert.tier === 'high'
+    )
+  );
+  readonly kpiCards = computed<KpiCard[]>(() => [
     {
-      label: 'Total Active Workers',
+      label: 'Active Drivers',
       value: '42',
-      icon: 'pi-users',
+      subtext: 'of 48 on clock',
       trend: '+3 vs yesterday',
-      trendUp: true,
-      color: '#4f8cff',
+      trendDirection: 'up',
+      status: 'normal',
+      icon: 'pi-users',
     },
     {
       label: "Today's Labor Cost",
       value: '$18,420',
+      subtext: 'tracking above last week',
+      trend: '+5.2% vs last week',
+      trendDirection: 'down',
+      status: 'normal',
       icon: 'pi-dollar',
-      trend: '+5.2%',
-      trendUp: false,
-      color: '#10b981',
     },
     {
-      label: 'Unapproved Timesheets',
-      value: '17',
-      icon: 'pi-clock',
-      trend: '-4 since morning',
-      trendUp: true,
-      color: '#f59e0b',
+      label: 'Routes Complete',
+      value: '34/47',
+      subtext: '72% on pace',
+      trend: 'On track for close',
+      trendDirection: 'up',
+      status: 'normal',
+      icon: 'pi-directions',
     },
     {
-      label: 'OT Hours This Week',
-      value: '86.5',
-      icon: 'pi-exclamation-triangle',
-      trend: '+12.3h',
-      trendUp: false,
-      color: '#ef4444',
+      label: 'Overtime Alerts',
+      value: this.highPriorityAlerts().length.toString(),
+      subtext: 'drivers over threshold',
+      trend: this.criticalAlerts().length > 0 ? `${this.criticalAlerts().length} critical now` : 'Monitor this afternoon',
+      trendDirection: this.criticalAlerts().length > 0 ? 'down' : 'neutral',
+      status: this.criticalAlerts().length > 0 ? 'danger' : 'warning',
+      icon: 'pi-bell',
     },
-  ];
+  ]);
 
   drivers: DriverMarker[] = [
     { name: 'Marcus Johnson', lat: 39.7592, lng: -104.9703, status: 'active', clockedIn: '6:02 AM', jobType: 'Residential Pickup', hours: 32.5 },
@@ -553,7 +699,33 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
     { name: 'Andre Davis', hours: 33.5, jobType: 'Commercial Dumpster', severity: 'amber' },
   ];
 
-  constructor(private ngZone: NgZone) {}
+  riskBoard = computed<RiskBoardItem[]>(() => [
+    { label: 'Critical', count: this.criticalAlerts().length.toString(), tone: 'critical' },
+    { label: 'Warning', count: (this.highPriorityAlerts().length - this.criticalAlerts().length).toString(), tone: 'warning' },
+    { label: 'Compliant', count: '18', tone: 'success' },
+  ]);
+
+  laborTrend = [
+    { day: 'Mon', percent: 56 },
+    { day: 'Tue', percent: 72 },
+    { day: 'Wed', percent: 66 },
+    { day: 'Thu', percent: 84 },
+    { day: 'Fri', percent: 93 },
+    { day: 'Sat', percent: 61 },
+    { day: 'Sun', percent: 48 },
+  ];
+
+  constructor(
+    private ngZone: NgZone,
+    public alerts: ManagerAlertsService,
+    private readonly router: Router
+  ) {}
+
+  ngOnInit(): void {
+    this.showCriticalBanner =
+      sessionStorage.getItem('sc-critical-banner-dismissed') !== '1' &&
+      this.criticalAlerts().length > 0;
+  }
 
   ngAfterViewInit(): void {
     this.ngZone.runOutsideAngular(() => {
@@ -566,6 +738,22 @@ export class DashboardPage implements AfterViewInit, OnDestroy {
       this.map.remove();
       this.map = null;
     }
+  }
+
+  dismissCriticalBanner(): void {
+    this.showCriticalBanner = false;
+    sessionStorage.setItem('sc-critical-banner-dismissed', '1');
+  }
+
+  reviewCriticalAlert(): void {
+    const alert = this.criticalAlerts()[0];
+    if (alert) {
+      this.alerts.markRead(alert.id);
+      void this.router.navigateByUrl(alert.route ?? '/compliance');
+      return;
+    }
+
+    void this.router.navigateByUrl('/compliance');
   }
 
   private initMap(): void {

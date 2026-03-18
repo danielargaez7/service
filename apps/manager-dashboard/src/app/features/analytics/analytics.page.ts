@@ -91,51 +91,51 @@ import type { EChartsCoreOption } from 'echarts/core';
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 24px;
+      margin-bottom: var(--sc-space-5);
       gap: 16px;
       flex-wrap: wrap;
     }
 
     .analytics-header h2 {
-      font-size: 1.5rem;
+      font-size: var(--sc-text-2xl);
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       margin: 0 0 4px;
     }
 
     .header-subtitle {
-      color: var(--sc-text-secondary, #64748b);
-      font-size: 0.9rem;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
       margin: 0;
     }
 
     .period-selector {
       display: flex;
       gap: 4px;
-      background: #f1f5f9;
-      border-radius: 10px;
+      background: var(--sc-gray-1);
+      border-radius: var(--sc-radius-md);
       padding: 4px;
     }
 
     .period-btn {
       padding: 8px 16px;
       border: none;
-      border-radius: 8px;
+      border-radius: var(--sc-radius-sm);
       font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       background: transparent;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       transition: all 0.15s ease;
     }
 
     .period-btn:hover {
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
     }
 
     .period-btn.active {
-      background: #fff;
-      color: var(--sc-accent, #4f8cff);
+      background: var(--sc-card-bg);
+      color: var(--sc-orange);
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
 
@@ -143,15 +143,15 @@ import type { EChartsCoreOption } from 'echarts/core';
     .summary-strip {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
+      gap: var(--sc-space-4);
+      margin-bottom: var(--sc-space-5);
     }
 
     .summary-card {
-      background: #fff;
-      border-radius: 12px;
+      background: var(--sc-card-bg);
+      border-radius: var(--sc-radius-lg);
       padding: 18px 20px;
-      border: 1px solid var(--sc-border, #e2e6ed);
+      border: 1px solid var(--sc-border);
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -160,12 +160,12 @@ import type { EChartsCoreOption } from 'echarts/core';
     .summary-value {
       font-size: 1.5rem;
       font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
     }
 
     .summary-label {
       font-size: 0.8rem;
-      color: var(--sc-text-secondary, #64748b);
+      color: var(--sc-text-secondary);
       font-weight: 500;
     }
 
@@ -175,18 +175,18 @@ import type { EChartsCoreOption } from 'echarts/core';
     }
 
     .summary-change.positive {
-      color: #059669;
+      color: var(--sc-success-3);
     }
 
     .summary-change.negative {
-      color: #dc2626;
+      color: var(--sc-danger-3);
     }
 
     /* -- Charts Grid -- */
     .charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: var(--sc-space-5);
     }
 
     .chart-wide {
@@ -206,13 +206,13 @@ import type { EChartsCoreOption } from 'echarts/core';
       align-items: center;
       justify-content: space-between;
       padding: 16px 20px;
-      border-bottom: 1px solid var(--sc-border, #e2e6ed);
+      border-bottom: 1px solid var(--sc-border);
     }
 
     .chart-header h3 {
       font-size: 0.95rem;
       font-weight: 700;
-      color: var(--sc-text-primary, #1e293b);
+      color: var(--sc-text-primary);
       margin: 0;
     }
 
@@ -221,13 +221,13 @@ import type { EChartsCoreOption } from 'echarts/core';
       font-weight: 600;
       padding: 3px 10px;
       border-radius: 20px;
-      background: #f0f5ff;
-      color: var(--sc-accent, #4f8cff);
+      background: var(--sc-info-1);
+      color: var(--sc-info-4);
     }
 
     .chart-badge.badge-warn {
-      background: #fef3c7;
-      color: #d97706;
+      background: var(--sc-warning-1);
+      color: var(--sc-warning-4);
     }
 
     .chart-container {

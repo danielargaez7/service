@@ -14,9 +14,14 @@ export const appRoutes: Route[] = [
     canActivate: [authGuard],
     children: [
       {
-        path: 'clock',
+        path: 'today',
         loadComponent: () =>
-          import('./features/clock/clock.page').then((m) => m.ClockPage),
+          import('./features/today/today.page').then((m) => m.TodayPage),
+      },
+      {
+        path: 'routes',
+        loadComponent: () =>
+          import('./features/routes/routes.page').then((m) => m.RoutesPage),
       },
       {
         path: 'hours',
@@ -26,13 +31,16 @@ export const appRoutes: Route[] = [
           ),
       },
       {
-        path: 'profile',
+        path: 'pay',
         loadComponent: () =>
-          import('./features/profile/profile.page').then(
-            (m) => m.ProfilePage
-          ),
+          import('./features/pay/pay.page').then((m) => m.PayPage),
       },
-      { path: '', redirectTo: 'clock', pathMatch: 'full' },
+      {
+        path: 'more',
+        loadComponent: () =>
+          import('./features/more/more.page').then((m) => m.MorePage),
+      },
+      { path: '', redirectTo: 'today', pathMatch: 'full' },
     ],
   },
   { path: '', redirectTo: 'tabs', pathMatch: 'full' },

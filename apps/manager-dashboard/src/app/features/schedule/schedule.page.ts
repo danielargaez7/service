@@ -1,322 +1,656 @@
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ChangeDetectionStrategy, computed, signal } from '@angular/core';
+import { CommonModule, CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
-import { CardModule } from 'primeng/card';
-import { TagModule } from 'primeng/tag';
-import { SelectModule } from 'primeng/select';
 import { DialogModule } from 'primeng/dialog';
+import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
+import { ManagerAlertsService } from '../../core/manager-alerts.service';
 
-interface ScheduleEntry {
+type ShiftTone = 'residential' | 'roll-off' | 'septic' | 'yard' | 'emergency';
+
+interface ShiftBlock {
   id: string;
-  employeeName: string;
-  employeeClass: string;
-  date: string;
-  dayOfWeek: string;
+  label: string;
+  routeName: string;
   startTime: string;
   endTime: string;
-  routeId: string;
-  routeName: string;
-  jobType: string;
-  hoursScheduled: number;
-  hosRemaining: number | null;
-  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'MISSED';
+  hours: number;
+  tone: ShiftTone;
 }
+
+interface DriverRow {
+  id: string;
+  name: string;
+  employeeClass: string;
+  blockedReason?: string;
+  hosRemaining: number | null;
+  weeklyHours: number;
+  shifts: Record<string, ShiftBlock | null>;
+}
+
+interface Conflict {
+  severity: 'CRITICAL' | 'WARNING';
+  message: string;
+}
+
+interface UnassignedRoute {
+  day: string;
+  label: string;
+}
+
+const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 @Component({
   standalone: true,
   imports: [
     CommonModule,
     FormsModule,
-    TableModule,
     ButtonModule,
-    CardModule,
-    TagModule,
-    SelectModule,
     DialogModule,
+    SelectModule,
     InputTextModule,
+    CurrencyPipe,
   ],
   selector: 'app-schedule',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="schedule-page">
       <div class="page-header">
-        <h1>Route Scheduling</h1>
+        <div>
+          <h1>Weekly Schedule</h1>
+          <p>{{ weekLabel() }}</p>
+        </div>
         <div class="header-actions">
-          <button pButton label="Previous Week" icon="pi pi-chevron-left"
-                  class="p-button-text" (click)="changeWeek(-1)"></button>
-          <span class="week-label">{{ weekLabel() }}</span>
-          <button pButton label="Next Week" icon="pi pi-chevron-right" iconPos="right"
-                  class="p-button-text" (click)="changeWeek(1)"></button>
-          <button pButton label="Add Shift" icon="pi pi-plus"
-                  class="p-button-success" (click)="showAddDialog.set(true)" style="margin-left: 16px;"></button>
+          <button pButton type="button" class="p-button-text" icon="pi pi-chevron-left" (click)="changeWeek(-1)"></button>
+          <button pButton type="button" class="p-button-text" icon="pi pi-chevron-right" (click)="changeWeek(1)"></button>
+          <button pButton type="button" class="p-button-outlined" label="Templates" icon="pi pi-angle-down"></button>
+          <button pButton type="button" label="Publish" icon="pi pi-send" [disabled]="hasCriticalConflicts()" (click)="publishSchedule()"></button>
         </div>
       </div>
 
-      <!-- Summary Cards -->
-      <div class="summary-row">
-        <p-card class="summary-card">
-          <div class="stat-value">{{ totalShifts() }}</div>
-          <div class="stat-label">Total Shifts</div>
-        </p-card>
-        <p-card class="summary-card">
-          <div class="stat-value">{{ totalHours() }}h</div>
-          <div class="stat-label">Scheduled Hours</div>
-        </p-card>
-        <p-card class="summary-card">
-          <div class="stat-value">{{ driversScheduled() }}</div>
-          <div class="stat-label">Drivers Scheduled</div>
-        </p-card>
-        <p-card class="summary-card">
-          <div class="stat-value hos-warn">{{ hosWarnings() }}</div>
-          <div class="stat-label">HOS Warnings</div>
-        </p-card>
+      <div class="schedule-summary">
+        <span>Labor: {{ projectedLaborCost() | currency:'USD':'symbol':'1.0-0' }} projected</span>
+        <span>·</span>
+        <span>{{ budgetUsedHours() }}h budget used / {{ availableBudgetHours() }}h available</span>
       </div>
 
-      <!-- Schedule Grid -->
-      <p-table
-        [value]="scheduleData()"
-        [paginator]="true"
-        [rows]="15"
-        [rowsPerPageOptions]="[10, 15, 25]"
-        [sortField]="'date'"
-        [sortOrder]="1"
-        styleClass="p-datatable-striped p-datatable-gridlines"
-        [globalFilterFields]="['employeeName', 'routeName', 'jobType']"
-      >
-        <ng-template pTemplate="header">
-          <tr>
-            <th pSortableColumn="employeeName">Driver <p-sortIcon field="employeeName" /></th>
-            <th pSortableColumn="dayOfWeek">Day <p-sortIcon field="dayOfWeek" /></th>
-            <th pSortableColumn="date">Date <p-sortIcon field="date" /></th>
-            <th>Shift</th>
-            <th>Route</th>
-            <th pSortableColumn="jobType">Job Type <p-sortIcon field="jobType" /></th>
-            <th>Hours</th>
-            <th>HOS Remaining</th>
-            <th pSortableColumn="status">Status <p-sortIcon field="status" /></th>
-            <th>Actions</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-entry>
-          <tr>
-            <td>
-              <strong>{{ entry.employeeName }}</strong>
-              <div class="class-badge">{{ entry.employeeClass }}</div>
-            </td>
-            <td>{{ entry.dayOfWeek }}</td>
-            <td>{{ entry.date }}</td>
-            <td>{{ entry.startTime }} – {{ entry.endTime }}</td>
-            <td>{{ entry.routeName }}</td>
-            <td>{{ entry.jobType.replace('_', ' ') }}</td>
-            <td>{{ entry.hoursScheduled }}h</td>
-            <td>
-              @if (entry.hosRemaining !== null) {
-                <span [class]="entry.hosRemaining < 2 ? 'hos-danger' : entry.hosRemaining < 4 ? 'hos-warning' : 'hos-ok'">
-                  {{ entry.hosRemaining }}h
-                </span>
-              } @else {
-                <span class="not-applicable">N/A</span>
-              }
-            </td>
-            <td>
-              <p-tag
-                [value]="entry.status"
-                [severity]="getStatusSeverity(entry.status)"
-              />
-            </td>
-            <td>
-              <button pButton icon="pi pi-pencil" class="p-button-text p-button-sm"
-                      pTooltip="Edit Shift"></button>
-              <button pButton icon="pi pi-trash" class="p-button-text p-button-danger p-button-sm"
-                      pTooltip="Remove Shift"></button>
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="10" style="text-align: center; padding: 40px;">
-              No shifts scheduled for this week.
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+      <div class="schedule-grid">
+        <div class="grid-header driver-col">Driver</div>
+        @for (day of DAYS; track day) {
+          <div class="grid-header">{{ day }}</div>
+        }
 
-      <!-- Add Shift Dialog -->
-      <p-dialog header="Add New Shift" [(visible)]="showAddDialogValue"
-                [style]="{ width: '500px' }" [modal]="true">
+        <div class="driver-label unassigned-row">Unassigned Routes</div>
+        @for (day of DAYS; track day) {
+          <div class="grid-cell unassigned-row">
+            @for (route of unassignedRoutesByDay(day); track route.label) {
+              <button type="button" class="unassigned-block">{{ route.label }}</button>
+            }
+          </div>
+        }
+
+        @for (row of scheduleRows(); track row.id) {
+          <div class="driver-label" [class.driver-blocked]="!!row.blockedReason">
+            <div class="driver-name">{{ row.name }}</div>
+            <div class="driver-meta">
+              <span>{{ row.employeeClass }}</span>
+              @if (row.blockedReason) {
+                <span class="driver-warning">{{ row.blockedReason }}</span>
+              } @else if ((getConflicts(row).length > 0)) {
+                <span class="driver-warning">⚠ {{ getConflicts(row).length }} issue(s)</span>
+              }
+            </div>
+          </div>
+
+          @for (day of DAYS; track day) {
+            <div class="grid-cell" [class.driver-blocked]="!!row.blockedReason">
+              @if (row.shifts[day]; as shift) {
+                <div class="shift-block" [class]="shift.tone">
+                  <span>{{ shift.label }}</span>
+                </div>
+              }
+              @if (!row.blockedReason && hasConflictForDay(row, day)) {
+                <span class="cell-conflict">⚠</span>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <div class="conflict-panel" *ngIf="hasCriticalConflicts() || projectedOTHours() > 0">
+        <h3>Schedule Validation</h3>
+        <div class="conflict-list">
+          @for (row of scheduleRows(); track row.id) {
+            @for (conflict of getConflicts(row); track conflict.message + $index) {
+              <div class="conflict-item" [class.critical]="conflict.severity === 'CRITICAL'">
+                <strong>{{ row.name }}</strong>
+                <span>{{ conflict.message }}</span>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <div class="schedule-footer">
+        <div class="labor-projection">
+          <span class="footer-label">Projected Labor Cost</span>
+          <span class="footer-value">{{ projectedLaborCost() | currency:'USD':'symbol':'1.0-0' }}</span>
+          <span class="footer-delta" [class.over]="budgetDelta() > 0">
+            {{ budgetDelta() > 0 ? '▲' : '▼' }}
+            {{ absBudgetDelta() | currency:'USD':'symbol':'1.0-0' }} vs budget
+          </span>
+        </div>
+        <div class="hours-summary">
+          <span>{{ totalScheduledHours() }}h scheduled</span>
+          <span class="separator">·</span>
+          <span class="ot-projection" *ngIf="projectedOTHours() > 0">
+            {{ projectedOTHours() | number:'1.0-1' }}h overtime
+          </span>
+        </div>
+        <button pButton type="button" label="Publish Schedule" icon="pi pi-send"
+          [disabled]="hasCriticalConflicts()" (click)="publishSchedule()"></button>
+      </div>
+
+      <p-dialog header="Schedule Templates" [(visible)]="showTemplatesValue" [modal]="true" [style]="{ width: '28rem' }">
         <div class="dialog-body">
           <div class="form-field">
-            <label>Driver</label>
-            <p-select [options]="driverOptions" placeholder="Select Driver"
-                        styleClass="w-full"></p-select>
+            <label>Template</label>
+            <p-select [options]="templateOptions" [(ngModel)]="selectedTemplate" placeholder="Select template"></p-select>
           </div>
           <div class="form-field">
-            <label>Route</label>
-            <p-select [options]="routeOptions" placeholder="Select Route"
-                        styleClass="w-full"></p-select>
-          </div>
-          <div class="form-field">
-            <label>Job Type</label>
-            <p-select [options]="jobTypeOptions" placeholder="Select Job Type"
-                        styleClass="w-full"></p-select>
-          </div>
-          <div class="form-row">
-            <div class="form-field">
-              <label>Start Time</label>
-              <input pInputText value="06:00" />
-            </div>
-            <div class="form-field">
-              <label>End Time</label>
-              <input pInputText value="14:30" />
-            </div>
+            <label>Notes</label>
+            <input pInputText [(ngModel)]="templateNotes" placeholder="Optional manager note" />
           </div>
         </div>
         <ng-template pTemplate="footer">
-          <button pButton label="Cancel" class="p-button-text"
-                  (click)="showAddDialog.set(false)"></button>
-          <button pButton label="Create Shift" icon="pi pi-check"
-                  (click)="showAddDialog.set(false)"></button>
+          <button pButton type="button" class="p-button-text" label="Cancel" (click)="showTemplates.set(false)"></button>
+          <button pButton type="button" label="Apply Template" icon="pi pi-check" (click)="applyTemplate()"></button>
         </ng-template>
       </p-dialog>
     </div>
   `,
   styles: [`
-    .schedule-page { padding: 24px; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .page-header h1 { font-size: 24px; margin: 0; color: #1e293b; }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
-    .week-label { font-size: 16px; font-weight: 600; min-width: 200px; text-align: center; }
+    .schedule-page {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sc-space-4);
+      min-height: 100%;
+    }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--sc-space-4);
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: var(--sc-text-2xl);
+      color: var(--sc-text-primary);
+    }
+    .page-header p {
+      margin: 6px 0 0;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
-    .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .summary-card { text-align: center; }
-    .stat-value { font-size: 28px; font-weight: 700; color: #1a237e; }
-    .stat-value.hos-warn { color: #c62828; }
-    .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .schedule-summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: var(--sc-space-3) var(--sc-space-4);
+      border-radius: var(--sc-radius-lg);
+      background: var(--sc-card-bg);
+      border: 1px solid var(--sc-border);
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+    }
 
-    .class-badge { font-size: 11px; color: #64748b; margin-top: 2px; }
-    .hos-danger { color: #c62828; font-weight: 700; }
-    .hos-warning { color: #f57c00; font-weight: 600; }
-    .hos-ok { color: #2e7d32; }
-    .not-applicable { color: #94a3b8; font-style: italic; }
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.1fr) repeat(7, minmax(96px, 1fr));
+      gap: 1px;
+      padding: 1px;
+      background: var(--sc-border);
+      border-radius: var(--sc-radius-lg);
+      overflow: hidden;
+    }
+    .grid-header,
+    .driver-label,
+    .grid-cell {
+      background: var(--sc-card-bg);
+      min-height: 64px;
+      padding: 10px 12px;
+    }
+    .grid-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--sc-text-secondary);
+    }
+    .driver-col {
+      justify-content: flex-start;
+    }
+    .driver-label {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+    .driver-name {
+      font-size: var(--sc-text-sm);
+      font-weight: 700;
+      color: var(--sc-text-primary);
+    }
+    .driver-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-xs);
+    }
+    .driver-warning {
+      color: var(--sc-warning-4);
+      font-weight: 700;
+    }
+    .grid-cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shift-block {
+      border-radius: var(--sc-radius-sm);
+      height: 36px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 8px;
+      font-size: var(--sc-text-xs);
+      font-weight: 600;
+      text-align: center;
+    }
+    .shift-block.residential { background: var(--sc-info-2); color: var(--sc-info-4); }
+    .shift-block.roll-off { background: var(--sc-success-2); color: var(--sc-success-4); }
+    .shift-block.septic { background: var(--sc-accent-2); color: var(--sc-accent-4); }
+    .shift-block.yard { background: var(--sc-caution-2); color: var(--sc-caution-4); }
+    .shift-block.emergency { background: var(--sc-danger-2); color: var(--sc-danger-4); }
 
-    .dialog-body { display: flex; flex-direction: column; gap: 16px; }
-    .form-field { display: flex; flex-direction: column; gap: 6px; }
-    .form-field label { font-weight: 600; font-size: 14px; color: #334155; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    :host ::ng-deep .w-full { width: 100%; }
+    .driver-blocked {
+      background: repeating-linear-gradient(
+        45deg,
+        var(--sc-gray-1),
+        var(--sc-gray-1) 10px,
+        var(--sc-gray-2) 10px,
+        var(--sc-gray-2) 20px
+      );
+      color: var(--sc-gray-3);
+      pointer-events: none;
+    }
+
+    .unassigned-row {
+      background: var(--sc-info-1);
+    }
+    .unassigned-block {
+      border: none;
+      background: var(--sc-blue);
+      color: #fff;
+      border-radius: var(--sc-radius-sm);
+      min-height: 36px;
+      padding: 0 10px;
+      font-size: var(--sc-text-xs);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .unassigned-block:hover {
+      background: var(--sc-blue-dark);
+    }
+
+    .cell-conflict {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      font-size: var(--sc-text-sm);
+      color: var(--sc-warning-4);
+    }
+
+    .conflict-panel {
+      background: var(--sc-card-bg);
+      border: 1px solid var(--sc-border);
+      border-radius: var(--sc-radius-lg);
+      padding: var(--sc-space-4);
+    }
+    .conflict-panel h3 {
+      margin: 0 0 10px;
+      color: var(--sc-text-primary);
+      font-size: var(--sc-text-base);
+    }
+    .conflict-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .conflict-item {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--sc-radius-md);
+      background: var(--sc-warning-1);
+      color: var(--sc-warning-4);
+      font-size: var(--sc-text-sm);
+    }
+    .conflict-item.critical {
+      background: var(--sc-danger-1);
+      color: var(--sc-danger-4);
+    }
+
+    .schedule-footer {
+      position: sticky;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sc-space-4);
+      padding: var(--sc-space-4) var(--sc-space-5);
+      border: 1px solid var(--sc-border);
+      border-radius: var(--sc-radius-lg);
+      background: color-mix(in srgb, var(--sc-card-bg) 92%, white);
+      box-shadow: var(--sc-shadow-md);
+    }
+    .labor-projection {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .footer-label {
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .footer-value {
+      font-size: var(--sc-text-2xl);
+      font-weight: 800;
+      color: var(--sc-text-primary);
+    }
+    .footer-delta {
+      color: var(--sc-success-4);
+      font-size: var(--sc-text-sm);
+      font-weight: 600;
+    }
+    .footer-delta.over {
+      color: var(--sc-danger-4);
+    }
+    .hours-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--sc-text-secondary);
+      font-size: var(--sc-text-sm);
+    }
+    .separator {
+      color: var(--sc-gray-3);
+    }
+    .ot-projection {
+      color: var(--sc-warning-4);
+      font-weight: 700;
+    }
+
+    .dialog-body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sc-space-4);
+    }
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-field label {
+      font-size: var(--sc-text-sm);
+      font-weight: 600;
+      color: var(--sc-text-primary);
+    }
+
+    @media (max-width: 1100px) {
+      .schedule-grid {
+        overflow-x: auto;
+        display: block;
+      }
+      .schedule-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
   `],
 })
 export class SchedulePage {
+  readonly DAYS = DAYS;
   readonly weekOffset = signal(0);
-  readonly showAddDialog = signal(false);
-
-  get showAddDialogValue() { return this.showAddDialog(); }
-  set showAddDialogValue(v: boolean) { this.showAddDialog.set(v); }
+  readonly showTemplates = signal(false);
+  readonly templateOptions = [
+    { label: 'Standard Residential Week', value: 'residential' },
+    { label: 'Heavy Roll-Off Coverage', value: 'rolloff' },
+    { label: 'Storm Response', value: 'emergency' },
+  ];
+  selectedTemplate = 'residential';
+  templateNotes = '';
 
   readonly weekLabel = computed(() => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(start.getDate() - start.getDay() + 1 + this.weekOffset() * 7);
+    const start = new Date(2026, 2, 17 + this.weekOffset() * 7);
     const end = new Date(start);
-    end.setDate(end.getDate() + 4);
-    const fmt = (d: Date) =>
-      d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `${fmt(start)} – ${fmt(end)}, ${end.getFullYear()}`;
+    end.setDate(end.getDate() + 6);
+    const fmt = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${fmt(start)}–${fmt(end)}`;
   });
 
-  readonly driverOptions = [
-    { label: 'Marcus Rivera', value: 'emp-1' },
-    { label: 'DeShawn Williams', value: 'emp-2' },
-    { label: 'Carlos Mendoza', value: 'emp-3' },
-    { label: 'Jake Thompson', value: 'emp-4' },
-    { label: 'Ahmad Hassan', value: 'emp-5' },
-  ];
+  readonly scheduleRows = computed<DriverRow[]>(() => [
+    {
+      id: 'emp-rivera',
+      name: 'Rivera, Marcus',
+      employeeClass: 'CDL-A',
+      hosRemaining: 12,
+      weeklyHours: 42.5,
+      shifts: {
+        MON: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
+        TUE: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
+        WED: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
+        THU: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
+        FRI: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
+        SAT: null,
+        SUN: null,
+      },
+    },
+    {
+      id: 'emp-williams',
+      name: 'Williams, DeShawn',
+      employeeClass: 'CDL-A',
+      hosRemaining: 3,
+      weeklyHours: 39,
+      shifts: {
+        MON: this.shift('roll-off', 'North Roll', '05:30', '14:00', 8.5),
+        TUE: null,
+        WED: this.shift('roll-off', 'North Roll', '05:30', '14:00', 8.5),
+        THU: this.shift('roll-off', 'North Roll', '05:30', '14:00', 8.5),
+        FRI: this.shift('roll-off', 'North Roll', '05:30', '14:00', 8.5),
+        SAT: null,
+        SUN: null,
+      },
+    },
+    {
+      id: 'emp-mendoza',
+      name: 'Mendoza, Carlos',
+      employeeClass: 'CDL-B',
+      hosRemaining: 8,
+      weeklyHours: 34,
+      shifts: {
+        MON: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
+        TUE: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
+        WED: null,
+        THU: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
+        FRI: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
+        SAT: null,
+        SUN: null,
+      },
+    },
+    {
+      id: 'emp-okafor',
+      name: 'Okafor, James',
+      employeeClass: 'CDL-A',
+      blockedReason: 'CDL expired — blocked',
+      hosRemaining: null,
+      weeklyHours: 0,
+      shifts: { MON: null, TUE: null, WED: null, THU: null, FRI: null, SAT: null, SUN: null },
+    },
+    {
+      id: 'emp-chen',
+      name: 'Chen, Lisa',
+      employeeClass: 'Dispatch',
+      hosRemaining: null,
+      weeklyHours: 40,
+      shifts: {
+        MON: this.shift('yard', 'Dispatch HQ', '08:00', '16:00', 8),
+        TUE: this.shift('yard', 'Dispatch HQ', '08:00', '16:00', 8),
+        WED: this.shift('yard', 'Dispatch HQ', '08:00', '16:00', 8),
+        THU: this.shift('yard', 'Dispatch HQ', '08:00', '16:00', 8),
+        FRI: this.shift('yard', 'Dispatch HQ', '08:00', '16:00', 8),
+        SAT: null,
+        SUN: null,
+      },
+    },
+  ]);
 
-  readonly routeOptions = [
-    { label: 'Residential South', value: 'route-south-1' },
-    { label: 'Roll-Off North', value: 'route-north-1' },
-    { label: 'Septic East', value: 'route-east-1' },
-    { label: 'Grease Trap Downtown', value: 'route-downtown-1' },
-  ];
+  readonly unassignedRoutes = signal<UnassignedRoute[]>([
+    { day: 'MON', label: 'Route A' },
+    { day: 'TUE', label: 'Route B' },
+    { day: 'WED', label: 'Route C' },
+  ]);
 
-  readonly jobTypeOptions = [
-    { label: 'Residential Sanitation', value: 'RESIDENTIAL_SANITATION' },
-    { label: 'Roll-Off Delivery', value: 'ROLL_OFF_DELIVERY' },
-    { label: 'Septic Pump', value: 'SEPTIC_PUMP' },
-    { label: 'Grease Trap', value: 'GREASE_TRAP' },
-    { label: 'Yard Maintenance', value: 'YARD_MAINTENANCE' },
-  ];
-
-  readonly scheduleData = computed<ScheduleEntry[]>(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 + this.weekOffset() * 7);
-
-    const entries: ScheduleEntry[] = [];
-    const drivers = [
-      { name: 'Marcus Rivera', class: 'CDL-A', route: 'Residential South', job: 'RESIDENTIAL_SANITATION', hos: 8.5 },
-      { name: 'DeShawn Williams', class: 'CDL-A', route: 'Roll-Off North', job: 'ROLL_OFF_DELIVERY', hos: 6.0 },
-      { name: 'Carlos Mendoza', class: 'CDL-B', route: 'Septic East', job: 'SEPTIC_PUMP', hos: 1.5 },
-      { name: 'Jake Thompson', class: 'CDL-A', route: 'Residential South', job: 'RESIDENTIAL_SANITATION', hos: 9.0 },
-      { name: 'Ahmad Hassan', class: 'CDL-A', route: 'Roll-Off East', job: 'ROLL_OFF_PICKUP', hos: 4.0 },
-      { name: 'Tyler Nguyen', class: 'CDL-B', route: 'Grease Trap DT', job: 'GREASE_TRAP', hos: null },
-      { name: 'David Kowalski', class: 'NON-CDL', route: 'Yard', job: 'YARD_MAINTENANCE', hos: null },
-      { name: 'James Mitchell', class: 'CDL-A', route: 'Roll-Off South', job: 'ROLL_OFF_DELIVERY', hos: 7.0 },
-    ];
-
-    for (let d = 0; d < 5; d++) {
-      const date = new Date(weekStart);
-      date.setDate(date.getDate() + d);
-      const dateStr = date.toISOString().slice(0, 10);
-      const isPast = date < now;
-
-      for (const driver of drivers) {
-        entries.push({
-          id: `sched-${d}-${driver.name}`,
-          employeeName: driver.name,
-          employeeClass: driver.class,
-          date: dateStr,
-          dayOfWeek: days[d],
-          startTime: driver.job === 'YARD_MAINTENANCE' ? '07:00' : '06:00',
-          endTime: driver.job === 'YARD_MAINTENANCE' ? '15:00' : '14:30',
-          routeId: `route-${d}`,
-          routeName: driver.route,
-          jobType: driver.job,
-          hoursScheduled: driver.job === 'YARD_MAINTENANCE' ? 8 : 8.5,
-          hosRemaining: driver.hos,
-          status: isPast ? (Math.random() > 0.1 ? 'COMPLETED' : 'MISSED') : 'SCHEDULED',
-        });
-      }
-    }
-    return entries;
-  });
-
-  readonly totalShifts = computed(() => this.scheduleData().length);
-  readonly totalHours = computed(() =>
-    Math.round(this.scheduleData().reduce((sum, e) => sum + e.hoursScheduled, 0))
+  readonly totalScheduledHours = computed(() =>
+    this.scheduleRows().reduce((sum, row) => sum + this.rowHours(row), 0)
   );
-  readonly driversScheduled = computed(() =>
-    new Set(this.scheduleData().map((e) => e.employeeName)).size
+  readonly projectedOTHours = computed(() =>
+    this.scheduleRows().reduce((sum, row) => sum + Math.max(0, this.rowHours(row) - 40), 0)
   );
-  readonly hosWarnings = computed(() =>
-    this.scheduleData().filter((e) => e.hosRemaining !== null && e.hosRemaining < 3).length
+  readonly projectedLaborCost = computed(() =>
+    this.scheduleRows().reduce((sum, row) => {
+      const hours = this.rowHours(row);
+      const regularHours = Math.min(hours, 40);
+      const overtimeHours = Math.max(0, hours - 40);
+      return sum + regularHours * 28 + overtimeHours * 42;
+    }, 0)
+  );
+  readonly budgetUsedHours = computed(() => Math.round(this.totalScheduledHours()));
+  readonly availableBudgetHours = computed(() => 80);
+  readonly budgetDelta = computed(() => this.projectedLaborCost() - 12400);
+  readonly absBudgetDelta = computed(() => Math.abs(this.budgetDelta()));
+  readonly hasCriticalConflicts = computed(() =>
+    this.scheduleRows().some((row) =>
+      this.getConflicts(row).some((conflict) => conflict.severity === 'CRITICAL')
+    )
   );
 
-  changeWeek(delta: number): void {
-    this.weekOffset.update((v) => v + delta);
+  get showTemplatesValue(): boolean {
+    return this.showTemplates();
   }
 
-  getStatusSeverity(status: string): 'success' | 'warn' | 'danger' | 'info' | 'secondary' {
-    switch (status) {
-      case 'COMPLETED': return 'success';
-      case 'IN_PROGRESS': return 'info';
-      case 'SCHEDULED': return 'secondary';
-      case 'MISSED': return 'danger';
-      default: return 'secondary';
+  set showTemplatesValue(value: boolean) {
+    this.showTemplates.set(value);
+  }
+
+  constructor(private readonly alerts: ManagerAlertsService) {}
+
+  changeWeek(delta: number): void {
+    this.weekOffset.update((value) => value + delta);
+  }
+
+  shift(tone: ShiftTone, routeName: string, startTime: string, endTime: string, hours: number): ShiftBlock {
+    return {
+      id: `${routeName}-${startTime}`,
+      label: routeName,
+      routeName,
+      startTime,
+      endTime,
+      hours,
+      tone,
+    };
+  }
+
+  rowHours(row: DriverRow): number {
+    return Object.values(row.shifts).reduce((sum, shift) => sum + (shift?.hours ?? 0), 0);
+  }
+
+  getConflicts(row: DriverRow): Conflict[] {
+    const conflicts: Conflict[] = [];
+    const weeklyHours = this.rowHours(row);
+
+    if (row.blockedReason) {
+      conflicts.push({
+        severity: 'CRITICAL',
+        message: `${row.blockedReason}. This driver cannot be published on the schedule.`,
+      });
     }
+
+    if (row.hosRemaining !== null && row.hosRemaining < 4) {
+      conflicts.push({
+        severity: 'CRITICAL',
+        message: `This schedule would exceed ${row.name}'s remaining DOT driving window.`,
+      });
+    }
+
+    if (weeklyHours > 40) {
+      conflicts.push({
+        severity: 'WARNING',
+        message: `This schedule projects ${(weeklyHours - 40).toFixed(1)}h overtime for ${row.name}.`,
+      });
+    }
+
+    return conflicts;
+  }
+
+  hasConflictForDay(row: DriverRow, day: string): boolean {
+    return this.getConflicts(row).length > 0 && !!row.shifts[day];
+  }
+
+  unassignedRoutesByDay(day: string): UnassignedRoute[] {
+    return this.unassignedRoutes().filter((route) => route.day === day);
+  }
+
+  publishSchedule(): void {
+    if (this.hasCriticalConflicts()) {
+      this.alerts.critical(
+        'Schedule blocked',
+        'Resolve CDL and HOS conflicts before publishing the weekly schedule.',
+        '/schedule'
+      );
+      return;
+    }
+
+    this.alerts.high(
+      'Schedule published',
+      `Weekly schedule published at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`,
+      '/schedule'
+    );
+  }
+
+  applyTemplate(): void {
+    this.alerts.low(
+      'Template applied',
+      `${this.selectedTemplate} template applied to the current scheduling week.`,
+      '/schedule'
+    );
+    this.showTemplates.set(false);
   }
 }
