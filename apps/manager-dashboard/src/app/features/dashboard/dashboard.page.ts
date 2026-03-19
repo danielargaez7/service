@@ -951,16 +951,37 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
   });
 
   drivers: DriverMarker[] = [
-    { name: 'Marcus Johnson', lat: 39.7592, lng: -104.9703, status: 'active', clockedIn: '6:02 AM', jobType: 'Residential Pickup', hours: 32.5 },
-    { name: 'Terrell Williams', lat: 39.7285, lng: -105.0153, status: 'active', clockedIn: '5:48 AM', jobType: 'Commercial Dumpster', hours: 34.0 },
-    { name: 'Jake Hernandez', lat: 39.7450, lng: -104.9550, status: 'ot-risk', clockedIn: '5:30 AM', jobType: 'Roll-Off Delivery', hours: 38.5 },
-    { name: 'DeShawn Carter', lat: 39.7100, lng: -104.9800, status: 'active', clockedIn: '6:15 AM', jobType: 'Residential Pickup', hours: 29.0 },
-    { name: 'Miguel Rodriguez', lat: 39.7700, lng: -105.0300, status: 'ot-risk', clockedIn: '5:15 AM', jobType: 'Recycling Route', hours: 39.5 },
-    { name: 'Chris Patterson', lat: 39.7350, lng: -104.9400, status: 'active', clockedIn: '6:30 AM', jobType: 'Bulk Waste', hours: 28.0 },
-    { name: 'Andre Davis', lat: 39.7550, lng: -105.0050, status: 'active', clockedIn: '6:00 AM', jobType: 'Commercial Dumpster', hours: 33.5 },
-    { name: 'Tony Ramirez', lat: 39.7200, lng: -105.0500, status: 'ot-risk', clockedIn: '5:45 AM', jobType: 'Roll-Off Pickup', hours: 35.5 },
-    { name: 'Kevin Brooks', lat: 39.7650, lng: -104.9250, status: 'active', clockedIn: '6:10 AM', jobType: 'Residential Pickup', hours: 31.0 },
-    { name: 'Luis Morales', lat: 39.7000, lng: -105.0100, status: 'active', clockedIn: '6:20 AM', jobType: 'Recycling Route', hours: 27.5 },
+    // Central Denver
+    { name: 'Carlos Rivera', lat: 39.7392, lng: -104.9903, status: 'active', clockedIn: '6:00 AM', jobType: 'Residential Sanitation', hours: 6.5 },
+    { name: 'Marcus Johnson', lat: 39.7592, lng: -104.9703, status: 'active', clockedIn: '6:02 AM', jobType: 'Residential Pickup', hours: 6.2 },
+    { name: 'Jake Hernandez', lat: 39.7450, lng: -104.9550, status: 'active', clockedIn: '5:30 AM', jobType: 'Roll-Off Delivery', hours: 7.0 },
+    // North Denver / Commerce City
+    { name: 'Mike Chen', lat: 39.8083, lng: -104.9344, status: 'active', clockedIn: '5:45 AM', jobType: 'Roll-Off Delivery', hours: 6.8 },
+    { name: 'DeShawn Carter', lat: 39.7950, lng: -104.9100, status: 'active', clockedIn: '6:15 AM', jobType: 'Residential Pickup', hours: 5.5 },
+    { name: 'Chris Patterson', lat: 39.8200, lng: -104.9600, status: 'active', clockedIn: '6:30 AM', jobType: 'Roll-Off Pickup', hours: 5.0 },
+    // South Denver / Englewood
+    { name: 'Tom Garcia', lat: 39.6600, lng: -104.9900, status: 'active', clockedIn: '6:00 AM', jobType: 'Septic Pump', hours: 6.5 },
+    { name: 'James Wright', lat: 39.6800, lng: -105.0200, status: 'active', clockedIn: '5:50 AM', jobType: 'Residential Sanitation', hours: 6.8 },
+    { name: 'Tony Ramirez', lat: 39.6500, lng: -105.0100, status: 'ot-risk', clockedIn: '5:15 AM', jobType: 'Septic Pump', hours: 9.2 },
+    // West Denver / Lakewood
+    { name: 'Terrell Williams', lat: 39.7285, lng: -105.0800, status: 'active', clockedIn: '5:48 AM', jobType: 'Septic Pump', hours: 6.7 },
+    { name: 'Miguel Rodriguez', lat: 39.7100, lng: -105.0900, status: 'active', clockedIn: '6:20 AM', jobType: 'Yard Maintenance', hours: 5.3 },
+    { name: 'Anna Kowalski', lat: 39.7400, lng: -105.1100, status: 'active', clockedIn: '7:00 AM', jobType: 'Yard Maintenance', hours: 4.5 },
+    // East Denver / Aurora
+    { name: 'Kevin Brooks', lat: 39.7294, lng: -104.8319, status: 'active', clockedIn: '6:10 AM', jobType: 'Residential Pickup', hours: 6.4 },
+    { name: 'Luis Morales', lat: 39.7100, lng: -104.8600, status: 'active', clockedIn: '6:30 AM', jobType: 'Yard Maintenance', hours: 5.0 },
+    // Thornton / Northglenn
+    { name: 'Andre Davis', lat: 39.8680, lng: -104.9720, status: 'active', clockedIn: '5:55 AM', jobType: 'Commercial Dumpster', hours: 6.6 },
+    { name: 'Ray Thompson', lat: 39.8850, lng: -104.9900, status: 'active', clockedIn: '6:05 AM', jobType: 'Residential Pickup', hours: 6.0 },
+    // Arvada / Westminster
+    { name: 'Danny Flores', lat: 39.8028, lng: -105.0875, status: 'active', clockedIn: '6:00 AM', jobType: 'Roll-Off Delivery', hours: 6.3 },
+    { name: 'Sean Murphy', lat: 39.8367, lng: -105.0372, status: 'ot-risk', clockedIn: '5:00 AM', jobType: 'Commercial Dumpster', hours: 9.5 },
+    // Littleton / Centennial
+    { name: 'Greg Owens', lat: 39.6133, lng: -105.0166, status: 'active', clockedIn: '6:15 AM', jobType: 'Grease Trap', hours: 5.8 },
+    { name: 'Ben Watts', lat: 39.5792, lng: -104.8769, status: 'active', clockedIn: '6:20 AM', jobType: 'Residential Pickup', hours: 5.5 },
+    // Parker / Lone Tree
+    { name: 'Nick Alvarez', lat: 39.5186, lng: -104.7614, status: 'active', clockedIn: '5:40 AM', jobType: 'Septic Pump', hours: 7.0 },
+    { name: 'Tyler Ross', lat: 39.5500, lng: -104.8900, status: 'active', clockedIn: '6:10 AM', jobType: 'Roll-Off Pickup', hours: 6.1 },
   ];
 
   otAlerts: OtAlert[] = [
