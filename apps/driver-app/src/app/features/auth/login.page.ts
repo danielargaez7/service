@@ -72,8 +72,7 @@ import { AuthService } from '../../core/auth.service';
           expand="block"
           size="large"
           class="login-button"
-          [disabled]="loading()"
-          (click)="onLogin()"
+          (click)="demoLogin()"
         >
           @if (loading()) {
             Signing In...
@@ -86,9 +85,9 @@ import { AuthService } from '../../core/auth.service';
       <div class="demo-section">
         <p class="demo-label">Demo Accounts <span>(password: demo)</span></p>
         <div class="demo-buttons">
-          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('driver@servicecore.com')">Driver (Carlos)</ion-button>
-          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('mike.chen@servicecore.com')">Mike Chen</ion-button>
-          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('tom.garcia@servicecore.com')">Tom Garcia</ion-button>
+          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('driver@servicecore.com'); demoLogin()">Driver (Carlos)</ion-button>
+          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('mike.chen@servicecore.com'); demoLogin()">Mike Chen</ion-button>
+          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('tom.garcia@servicecore.com'); demoLogin()">Tom Garcia</ion-button>
         </div>
       </div>
 
@@ -205,6 +204,24 @@ export class LoginPage {
     this.email.set(email);
     this.password.set('demo');
     this.errorMessage.set('');
+  }
+
+  demoLogin(): void {
+    // Skip API — go straight to the app for demo purposes
+    const email = this.email().trim() || 'driver@servicecore.com';
+    const name = email.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+    const demoUser = {
+      id: 'demo-driver',
+      firstName: name.split(' ')[0] || 'Demo',
+      lastName: name.split(' ')[1] || 'Driver',
+      email,
+      role: 'DRIVER',
+      employeeClass: 'CDL_A',
+    };
+    localStorage.setItem('sc_access_token', 'demo-token');
+    localStorage.setItem('sc_refresh_token', 'demo-refresh');
+    localStorage.setItem('sc_user', JSON.stringify(demoUser));
+    this.router.navigate(['/tabs']);
   }
 
   async onLogin(): Promise<void> {
