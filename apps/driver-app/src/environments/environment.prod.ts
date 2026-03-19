@@ -1,5 +1,7 @@
 export const environment = {
   production: true,
-  apiUrl: '',
+  get apiUrl() {
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  },
   wsUrl: '',
 };
