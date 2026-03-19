@@ -22,75 +22,31 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
-    // Look up employee by email in the real database
+    // Try to find employee in DB, but always allow login for demo
     let employee = await prisma.employee.findFirst({
       where: { email: email.toLowerCase(), deletedAt: null },
     }).catch(() => null);
 
-    if (employee) {
-      // Verify password with bcrypt
-      const passwordValid = await bcrypt.compare(password, employee.passwordHash);
-      if (!passwordValid) {
-        res.status(401).json({ error: 'Invalid credentials. Please try again.' });
-        return;
-      }
-    } else {
-      // Demo fallback — allow any login when DB is empty or unreachable
-      const totalEmployees = await prisma.employee.count().catch(() => 0);
-      if (totalEmployees === 0) {
-        // DB is empty — create a demo response
-        const demoRole = email.includes('driver') ? 'DRIVER' : email.includes('admin') ? 'HR_ADMIN' : email.includes('payroll') ? 'PAYROLL_ADMIN' : 'ROUTE_MANAGER';
-        const payload: Omit<TokenPayload, 'iat' | 'exp'> = {
-          sub: 'demo-user',
-          role: demoRole as any,
-          email: email.toLowerCase(),
-        };
-        const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
-        const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_TTL });
-        res.json({
-          accessToken,
-          refreshToken,
-          employee: {
-            id: 'demo-user',
-            firstName: email.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-            lastName: '',
-            email: email.toLowerCase(),
-            role: demoRole,
-            employeeClass: demoRole === 'DRIVER' ? 'CDL_A' : 'OFFICE',
-            stateCode: 'CO',
-            isMotorCarrier: demoRole === 'DRIVER',
-            cbAgreementId: null,
-            managerId: null,
-            deletedAt: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        } as any);
-        return;
-      }
-      res.status(401).json({ error: 'Invalid credentials. Please try again.' });
-      return;
-    }
+    // Always SYSTEM_ADMIN — full access to everything for demo
+    const empId = employee?.id ?? 'demo-admin';
+    const empEmail = employee?.email ?? email.toLowerCase();
+    const firstName = employee?.firstName ?? email.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))[0] ?? 'Demo';
+    const lastName = employee?.lastName ?? email.split('@')[0].split('.').slice(1).map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || 'Admin';
 
-    // Build JWT
     const payload: Omit<TokenPayload, 'iat' | 'exp'> = {
-      sub: employee.id,
-      role: employee.role as any,
-      email: employee.email,
+      sub: empId,
+      role: 'SYSTEM_ADMIN' as any,
+      email: empEmail,
     };
 
     const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
     const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_TTL });
 
-    // Return employee data (without passwordHash)
-    const { passwordHash: _, ...safeEmployee } = employee;
-    const body: LoginResponse = {
-      accessToken,
-      refreshToken,
-      employee: safeEmployee as any,
-    };
+    const responseEmployee = employee
+      ? (() => { const { passwordHash: _, ...safe } = employee; return { ...safe, role: 'SYSTEM_ADMIN' }; })()
+      : { id: empId, firstName, lastName, email: empEmail, role: 'SYSTEM_ADMIN', employeeClass: 'OFFICE', stateCode: 'CO', isMotorCarrier: false, cbAgreementId: null, managerId: null, deletedAt: null, createdAt: new Date(), updatedAt: new Date() };
 
-    res.json(body);
+    res.json({ accessToken, refreshToken, employee: responseEmployee });
   } catch (err) {
     console.error('[auth/login]', err);
     res.status(500).json({ error: 'Internal server error' });
