@@ -36,7 +36,8 @@
               "maximumError": "16kb"
             }
           ],
-          "outputHashing": "all"
+          "outputHashing": "all",
+          "baseHref": "/driver/"
         },
         "development": {
           "optimization": false,
