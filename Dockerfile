@@ -19,6 +19,9 @@ RUN npx nx build manager-dashboard --configuration=production --skip-nx-cache 2>
 # Build driver app (ignore budget warnings)
 RUN npx nx build driver-app --configuration=production --skip-nx-cache 2>&1 || true
 
+# Compile seed script to JS
+RUN npx tsc apps/backend-api/prisma/seed.ts --outDir dist/apps/backend-api --esModuleInterop --module commonjs --resolveJsonModule --skipLibCheck 2>&1 || true
+
 # ── Stage 2: Production image ───────────────────────────────────────────────
 FROM node:22-alpine AS production
 
@@ -28,7 +31,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --omit=dev --ignore-scripts
 
-# Copy Prisma schema + generated client
+# Copy Prisma schema + migrations + generated client
 COPY --from=builder /app/apps/backend-api/prisma ./apps/backend-api/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
@@ -43,10 +46,14 @@ COPY --from=builder /app/dist/apps/driver-app/browser ./public/driver
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
+# Copy entrypoint
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
 EXPOSE 3000
 
-CMD ["node", "dist/apps/backend-api/main.js"]
+CMD ["./entrypoint.sh"]
