@@ -38,11 +38,11 @@ interface ManifestRecord {
 }
 
 const RISK_TYPE_LABELS: Record<RiskType, string> = {
-  CDL_EXPIRED: 'CDL Expired',
-  CDL_EXPIRING: 'CDL Expiring Soon',
-  DOT_PHYSICAL_EXPIRED: 'DOT Physical Expired',
-  DOT_PHYSICAL_EXPIRING: 'DOT Physical Expiring',
-  HOS_WARNING: 'HOS Violation Warning',
+  CDL_EXPIRED: 'License Expired',
+  CDL_EXPIRING: 'License Expiring',
+  DOT_PHYSICAL_EXPIRED: 'Physical Expired',
+  DOT_PHYSICAL_EXPIRING: 'Physical Due',
+  HOS_WARNING: 'Driving Hours Limit',
 };
 
 const RISK_TYPE_ICONS: Record<RiskType, string> = {
@@ -203,52 +203,44 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
       <!-- Page Header -->
       <div class="page-header">
         <div class="header-title">
-          <h2>Compliance Risk Dashboard</h2>
-          <span class="subtitle">Monitor compliance risks and take action before violations occur</span>
+          <h2>Driver Compliance</h2>
+          <span class="subtitle">Licenses, physicals, and driving hours — everything that needs your attention</span>
         </div>
       </div>
 
       <!-- Summary Cards -->
       <div class="summary-cards">
         <button type="button" class="summary-card total" [class.active]="!severityFilter()" (click)="severityFilter.set(null)">
-          <div class="card-icon"><i class="pi pi-shield"></i></div>
+          <div class="card-icon"><i class="pi pi-list"></i></div>
           <div class="card-body">
             <span class="card-value">{{ totalRisks() }}</span>
-            <span class="card-label">Total Risks</span>
+            <span class="card-label">All Items</span>
           </div>
-          <div class="card-hover-detail">
-            All open compliance risks across CDL, DOT, and HOS categories
-          </div>
+          <div class="card-hover-detail">Show everything that needs attention</div>
         </button>
         <button type="button" class="summary-card high" [class.active]="severityFilter() === 'HIGH'" (click)="severityFilter.set(severityFilter() === 'HIGH' ? null : 'HIGH')">
           <div class="card-icon"><i class="pi pi-exclamation-triangle"></i></div>
           <div class="card-body">
             <span class="card-value">{{ highCount() }}</span>
-            <span class="card-label">High Severity</span>
+            <span class="card-label">Act Now</span>
           </div>
-          <div class="card-hover-detail">
-            Expired CDLs, exceeded HOS limits, drivers that must be pulled off route immediately
-          </div>
+          <div class="card-hover-detail">These drivers can't work until resolved — expired licenses or exceeded driving limits</div>
         </button>
         <button type="button" class="summary-card medium" [class.active]="severityFilter() === 'MEDIUM'" (click)="severityFilter.set(severityFilter() === 'MEDIUM' ? null : 'MEDIUM')">
-          <div class="card-icon"><i class="pi pi-exclamation-circle"></i></div>
+          <div class="card-icon"><i class="pi pi-clock"></i></div>
           <div class="card-body">
             <span class="card-value">{{ mediumCount() }}</span>
-            <span class="card-label">Medium Severity</span>
+            <span class="card-label">Coming Soon</span>
           </div>
-          <div class="card-hover-detail">
-            Expiring certifications and approaching HOS limits — action needed within 30 days
-          </div>
+          <div class="card-hover-detail">Licenses or physicals expiring within 30 days — schedule renewals now</div>
         </button>
         <button type="button" class="summary-card low" [class.active]="severityFilter() === 'LOW'" (click)="severityFilter.set(severityFilter() === 'LOW' ? null : 'LOW')">
-          <div class="card-icon"><i class="pi pi-info-circle"></i></div>
+          <div class="card-icon"><i class="pi pi-check-circle"></i></div>
           <div class="card-body">
             <span class="card-value">{{ lowCount() }}</span>
-            <span class="card-label">Low Severity</span>
+            <span class="card-label">On Track</span>
           </div>
-          <div class="card-hover-detail">
-            Upcoming renewals with plenty of lead time — no immediate action required
-          </div>
+          <div class="card-hover-detail">Renewals due in 60+ days — no rush, just keeping you informed</div>
         </button>
       </div>
 
@@ -274,29 +266,34 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
         (tertiaryAction)="resetFilters()"
       />
 
-      <section class="hos-board">
-        @for (risk of hosRisks(); track risk.id) {
-          <article class="hos-card" [class.critical]="(risk.hoursRemaining ?? 0) <= 4">
-            <div class="hos-header">
-              <div>
-                <strong>{{ risk.employeeName }}</strong>
-                <span>{{ risk.employeeId }} · {{ risk.hoursRemaining }}h remaining</span>
-              </div>
-              <span class="hos-status">{{ (risk.hoursRemaining ?? 0) <= 4 ? 'Critical window' : 'Watchlist' }}</span>
-            </div>
-            <div class="hos-track">
-              <div class="hos-fill" [style.width.%]="hosUsagePercent(risk)"></div>
-            </div>
-            <p>{{ risk.details }}</p>
-          </article>
-        }
-      </section>
+      @if (hosRisks().length > 0) {
+        <section class="hos-board">
+          <h3 class="section-title"><i class="pi pi-car"></i> Driving Hours Watch</h3>
+          <p class="section-desc">Federal law limits how long drivers can be on the road. These drivers are close to their limit.</p>
+          <div class="hos-grid">
+            @for (risk of hosRisks(); track risk.id) {
+              <article class="hos-card" [class.critical]="(risk.hoursRemaining ?? 0) <= 4">
+                <div class="hos-header">
+                  <strong>{{ risk.employeeName }}</strong>
+                  <span class="hos-status">{{ (risk.hoursRemaining ?? 0) <= 4 ? 'Must stop soon' : 'Monitor' }}</span>
+                </div>
+                <div class="hos-track">
+                  <div class="hos-fill" [style.width.%]="hosUsagePercent(risk)"></div>
+                </div>
+                <div class="hos-footer">
+                  <span>{{ risk.hoursRemaining }}h left this cycle</span>
+                </div>
+              </article>
+            }
+          </div>
+        </section>
+      }
 
       <section class="manifest-panel">
         <div class="manifest-panel-header">
           <div>
-            <h3>Manifest Compliance</h3>
-            <p>Monitor disposal records captured from the driver end-of-shift flow.</p>
+            <h3>Waste Disposal Records</h3>
+            <p>Drivers log what they haul and where they dump it. These records need to be submitted to the state.</p>
           </div>
           <div class="manifest-actions">
             <button pButton type="button" icon="pi pi-download" label="Export CSV" class="p-button-outlined p-button-sm"
@@ -385,12 +382,12 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
         <ng-template pTemplate="header">
           <tr>
             <th style="width: 3rem"></th>
-            <th pSortableColumn="employeeName">Employee <p-sortIcon field="employeeName" /></th>
-            <th pSortableColumn="riskType">Risk Type <p-sortIcon field="riskType" /></th>
-            <th pSortableColumn="severityOrder">Severity <p-sortIcon field="severityOrder" /></th>
-            <th>Details</th>
-            <th pSortableColumn="expiryDate">Expiry / Hours Left <p-sortIcon field="expiryDate" /></th>
-            <th pSortableColumn="dateIdentified">Identified <p-sortIcon field="dateIdentified" /></th>
+            <th pSortableColumn="employeeName">Driver <p-sortIcon field="employeeName" /></th>
+            <th pSortableColumn="riskType">Issue <p-sortIcon field="riskType" /></th>
+            <th pSortableColumn="severityOrder">Priority <p-sortIcon field="severityOrder" /></th>
+            <th>What's Happening</th>
+            <th pSortableColumn="expiryDate">Deadline <p-sortIcon field="expiryDate" /></th>
+            <th pSortableColumn="dateIdentified">Found <p-sortIcon field="dateIdentified" /></th>
             <th style="width: 10rem">Actions</th>
           </tr>
         </ng-template>
@@ -401,10 +398,7 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
               <i [class]="getRiskIcon(risk.riskType)" [style.color]="getSeverityColor(risk.severity)"></i>
             </td>
             <td>
-              <div class="employee-cell">
-                <strong>{{ risk.employeeName }}</strong>
-                <small>{{ risk.employeeId }}</small>
-              </div>
+              <strong>{{ risk.employeeName }}</strong>
             </td>
             <td>
               <span class="risk-type-label">{{ getRiskTypeLabel(risk.riskType) }}</span>
@@ -567,11 +561,22 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
     .summary-card.low .card-icon { background: var(--sc-success-1); color: var(--sc-success-3); }
     .summary-card.low .card-value { color: var(--sc-success-4); }
 
+    .section-title {
+      margin: 0 0 4px; font-size: 1rem; font-weight: 700; color: var(--sc-text-primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title i { color: var(--sc-orange); }
+    .section-desc { margin: 0 0 16px; font-size: 0.85rem; color: var(--sc-text-secondary); }
+
     .hos-board {
+      background: var(--sc-card-bg); border: 1px solid var(--sc-border);
+      border-radius: var(--sc-radius-lg); padding: 20px 24px;
+      margin-bottom: var(--sc-space-5);
+    }
+    .hos-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: var(--sc-space-4);
-      margin-bottom: var(--sc-space-5);
     }
     .hos-card {
       background: var(--sc-card-bg);
@@ -600,11 +605,15 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
     .hos-header strong {
       color: var(--sc-text-primary);
     }
-    .hos-header span,
-    .hos-card p {
+    .hos-header span {
       color: var(--sc-text-secondary);
       font-size: var(--sc-text-sm);
       margin: 0;
+    }
+    .hos-footer {
+      font-size: var(--sc-text-sm);
+      color: var(--sc-text-secondary);
+      font-weight: 600;
     }
     .hos-status {
       font-size: var(--sc-text-xs);
