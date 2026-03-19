@@ -50,6 +50,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'payroll/issues',
+        loadComponent: () =>
+          import('./features/payroll/payroll-issues.page').then(
+            (m) => m.PayrollIssuesPage
+          ),
+      },
+      {
         path: 'compliance',
         loadComponent: () =>
           import('./features/compliance/compliance.page').then(

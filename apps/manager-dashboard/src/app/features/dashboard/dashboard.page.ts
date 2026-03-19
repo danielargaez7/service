@@ -162,6 +162,11 @@ interface RiskBoardItem {
             <div class="pending-approval-card">
               <span class="pending-count">{{ pendingTimesheetCount() }} pending</span>
               <p>{{ exceptionsData().totalFlagged }} flagged entries require manager review before payroll close.</p>
+              @if (exceptionsData().totalFlagged > 0) {
+                <button type="button" class="resolve-issues-btn" (click)="navigateTo('/payroll/issues')">
+                  <i class="pi pi-file-check"></i> Resolve Payroll Issues
+                </button>
+              }
             </div>
           </div>
         </div>
@@ -578,6 +583,29 @@ interface RiskBoardItem {
       color: var(--sc-text-secondary);
       font-size: var(--sc-text-sm);
     }
+    .resolve-issues-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    .resolve-issues-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+
     .mini-action-btn {
       border: 1px solid var(--sc-border);
       background: var(--sc-card-bg);

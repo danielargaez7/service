@@ -134,18 +134,12 @@ function guardrailResponse(input: string) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /nlq — natural language query (proxy to Genkit)
+// POST /nlq — natural language query powered by Claude
 // ---------------------------------------------------------------------------
-aiRouter.post('/nlq', (req: Request, res: Response) => {
+aiRouter.post('/nlq', async (req: Request, res: Response) => {
   const parsed = nlqSchema.safeParse(req.body);
   if (!parsed.success) {
-    apiError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      'Invalid NLQ payload',
-      parsed.error.flatten()
-    );
+    apiError(res, 400, 'VALIDATION_ERROR', 'Invalid NLQ payload', parsed.error.flatten());
     return;
   }
   const { query } = parsed.data;
@@ -154,46 +148,115 @@ aiRouter.post('/nlq', (req: Request, res: Response) => {
     apiError(res, 422, guardrail.code, guardrail.message);
     return;
   }
-  const responseId = `nlq-${Date.now()}`;
 
-  const toolCalls: AiToolCall[] = [
-    {
-      id: `tool-${Date.now()}-1`,
-      type: 'query',
-      name: 'fetch_overtime_summary',
-      description: 'Fetch overtime totals for active pay period',
-      args: { period: 'current-week' },
-    },
-    {
-      id: `tool-${Date.now()}-2`,
-      type: 'lookup',
-      name: 'fetch_high_risk_employees',
-      description: 'Find employees over configured overtime threshold',
-      args: { thresholdHours: 8 },
-    },
-  ];
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    apiError(res, 503, 'AI_NOT_CONFIGURED', 'AI service not configured. Set ANTHROPIC_API_KEY environment variable.');
+    return;
+  }
 
-  // Stub response — in production this proxies to the Genkit NLQ flow
-  res.json({
-    responseId,
-    query,
-    answer:
-      'Based on this week\'s data, 3 employees have exceeded 8 hours of overtime. Carlos Rivera leads with 12.5 OT hours.',
-    data: {
-      topOvertimeEmployees: [
-        { employeeId: 'emp-002', name: 'Carlos Rivera', otHours: 12.5 },
-        { employeeId: 'emp-005', name: 'Mike Johnson', otHours: 9.0 },
-        { employeeId: 'emp-008', name: 'Sarah Kim', otHours: 8.5 },
-      ],
-    },
-    confidence: 0.92,
-    toolCalls,
-    rating: {
-      up: 0,
-      down: 0,
-    },
-    generatedAt: new Date().toISOString(),
-  });
+  // Fetch real context from the database
+  const { jobEstimateService } = await import('../services/job-estimate.service');
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  let contextData = '';
+  try {
+    const summary = await jobEstimateService.getAnalyticsSummary(monthStart, now);
+    const topOT = await jobEstimateService.getTopOTEmployees(monthStart, now, 5);
+    const costByJob = await jobEstimateService.getCostByJobType(monthStart, now);
+
+    contextData = `
+CURRENT DATA (${monthStart.toLocaleDateString()} to ${now.toLocaleDateString()}):
+- Total employees: ${summary.totalEmployees}
+- Total hours worked: ${summary.totalHours}h (${summary.totalRegularHours}h regular, ${summary.totalOTHours}h overtime)
+- Total labor cost: $${summary.totalLaborCost.toLocaleString()} ($${summary.totalOTCost.toLocaleString()} in OT)
+- Avg hours per employee: ${summary.avgHoursPerEmployee}h
+
+Top overtime employees:
+${topOT.map((e, i) => `${i + 1}. ${e.employeeName}: ${e.otHours}h OT at $${e.avgRate}/hr`).join('\n')}
+
+Cost by job type:
+${costByJob.map((j) => `- ${j.jobType.replace(/_/g, ' ')}: $${(j.regularPay + j.overtimePay).toLocaleString()} (${j.totalHours}h)`).join('\n')}
+`;
+  } catch {
+    contextData = 'Unable to fetch current data from database.';
+  }
+
+  const systemPrompt = `You are ServiceCore AI, a workforce analytics assistant for a Denver waste management company.
+You help managers understand labor data, overtime trends, compliance risks, and scheduling efficiency.
+
+${contextData}
+
+When answering questions, respond with a JSON object containing:
+{
+  "explanation": "A clear, concise answer to the question in 1-3 sentences",
+  "sql": "The SQL query that would answer this question (for transparency)",
+  "chartType": "bar" | "table" | "number",
+  "chartData": { ... } // depends on chartType:
+    // For "bar": { "labels": [...], "series": [{ "name": "...", "data": [...] }] }
+    // For "table": { "columns": [{ "field": "...", "header": "..." }], "rows": [{ ... }] }
+    // For "number": { "value": "...", "label": "..." }
+}
+
+Use the real data provided above. Be specific with numbers. Always respond with valid JSON only, no markdown.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: query }],
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('[ai/nlq] Claude API error:', response.status, err);
+      apiError(res, 502, 'AI_UPSTREAM_ERROR', 'AI service returned an error');
+      return;
+    }
+
+    const data = await response.json() as any;
+    const text = data.content?.[0]?.text ?? '';
+
+    // Parse the JSON response from Claude
+    let parsed_ai: any;
+    try {
+      // Extract JSON from potential markdown code blocks
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      parsed_ai = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+    } catch {
+      // If JSON parsing fails, return as plain text explanation
+      parsed_ai = {
+        explanation: text,
+        sql: '-- AI generated a text response',
+        chartType: 'number',
+        chartData: { value: '—', label: text.slice(0, 100) },
+      };
+    }
+
+    const responseId = `nlq-${Date.now()}`;
+    res.json({
+      responseId,
+      query,
+      explanation: parsed_ai.explanation ?? '',
+      sql: parsed_ai.sql ?? '',
+      chartType: parsed_ai.chartType ?? 'table',
+      chartData: parsed_ai.chartData ?? {},
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('[ai/nlq]', err);
+    apiError(res, 500, 'AI_ERROR', 'Failed to process AI query');
+  }
 });
 
 // ---------------------------------------------------------------------------

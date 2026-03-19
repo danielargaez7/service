@@ -12,126 +12,247 @@ import { AuthService } from '../../core/auth.service';
   imports: [CommonModule, FormsModule, InputTextModule, ButtonModule, PasswordModule],
   selector: 'app-login',
   template: `
-    <div class="login-wrapper">
-      <div class="login-card">
-        <div class="login-brand">
-          <i class="pi pi-bolt brand-icon"></i>
+    <div class="login-page">
+      <!-- Left: Branding Panel -->
+      <div class="brand-panel">
+        <div class="brand-content">
+          <div class="brand-logo">
+            <div class="logo-icon">SC</div>
+          </div>
           <h1>ServiceCore</h1>
-          <p class="brand-subtitle">Manager Dashboard</p>
-        </div>
-
-        <form (ngSubmit)="onLogin()" class="login-form">
-          <div class="field">
-            <label for="email">Email</label>
-            <input
-              pInputText
-              id="email"
-              type="email"
-              [(ngModel)]="email"
-              name="email"
-              placeholder="manager@company.com"
-              class="w-full"
-              [disabled]="loading()"
-            />
+          <p class="brand-tagline">Labor Intelligence Platform</p>
+          <div class="brand-features">
+            <div class="feature"><i class="pi pi-clock"></i><span>Automated Time Tracking</span></div>
+            <div class="feature"><i class="pi pi-chart-line"></i><span>Real-Time Analytics</span></div>
+            <div class="feature"><i class="pi pi-shield"></i><span>DOT/HOS Compliance</span></div>
+            <div class="feature"><i class="pi pi-dollar"></i><span>Payroll Integration</span></div>
           </div>
-
-          <div class="field">
-            <label for="password">Password</label>
-            <p-password
-              id="password"
-              [(ngModel)]="password"
-              name="password"
-              placeholder="Enter your password"
-              [feedback]="false"
-              [toggleMask]="true"
-              styleClass="w-full"
-              inputStyleClass="w-full"
-              [disabled]="loading()"
-            />
-          </div>
-
-          @if (errorMessage()) {
-            <div class="error-message">
-              <i class="pi pi-exclamation-circle"></i>
-              {{ errorMessage() }}
-            </div>
-          }
-
-          <p-button
-            type="submit"
-            label="Sign In"
-            icon="pi pi-sign-in"
-            styleClass="w-full"
-            [loading]="loading()"
-            [disabled]="!email || !password"
-          />
-        </form>
-
-        <div class="login-footer">
-          <p>Time Tracking & Workforce Management</p>
         </div>
+        <p class="brand-footer">Denver Waste Operations · 155 Employees</p>
       </div>
 
-      <div class="demo-accounts-outer">
-        <p class="demo-title-outer">Demo Accounts <span>(password: demo)</span></p>
-        <div class="demo-list-outer">
-          <button type="button" class="demo-btn-outer" (click)="fillDemo('manager@servicecore.com')">
-            <strong>Manager</strong><span>manager&#64;servicecore.com</span>
-          </button>
-          <button type="button" class="demo-btn-outer" (click)="fillDemo('admin@servicecore.com')">
-            <strong>HR Admin</strong><span>admin&#64;servicecore.com</span>
-          </button>
-          <button type="button" class="demo-btn-outer" (click)="fillDemo('payroll@servicecore.com')">
-            <strong>Payroll</strong><span>payroll&#64;servicecore.com</span>
-          </button>
+      <!-- Right: Login Form -->
+      <div class="form-panel">
+        <div class="form-container">
+          <div class="form-header">
+            <h2>Welcome back</h2>
+            <p>Sign in to your dashboard</p>
+          </div>
+
+          <form (ngSubmit)="onLogin()" class="login-form">
+            <div class="field">
+              <label for="email">Email address</label>
+              <div class="input-wrap">
+                <i class="pi pi-envelope"></i>
+                <input
+                  pInputText
+                  id="email"
+                  type="email"
+                  [(ngModel)]="email"
+                  name="email"
+                  placeholder="you@servicecore.com"
+                  [disabled]="loading()"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="field-header">
+                <label for="password">Password</label>
+                <a class="forgot-link" href="#">Forgot password?</a>
+              </div>
+              <div class="input-wrap">
+                <i class="pi pi-lock"></i>
+                <input
+                  pInputText
+                  id="password"
+                  type="password"
+                  [(ngModel)]="password"
+                  name="password"
+                  placeholder="Enter your password"
+                  [disabled]="loading()"
+                />
+              </div>
+            </div>
+
+            @if (errorMessage()) {
+              <div class="error-bar">
+                <i class="pi pi-exclamation-circle"></i>
+                {{ errorMessage() }}
+              </div>
+            }
+
+            <button type="submit" class="sign-in-btn" [disabled]="!email || !password || loading()">
+              @if (loading()) {
+                <i class="pi pi-spin pi-spinner"></i> Signing in...
+              } @else {
+                Sign In
+              }
+            </button>
+          </form>
+
+          <!-- Demo Accounts -->
+          <div class="demo-section">
+            <div class="demo-divider"><span>Demo Accounts</span></div>
+            <div class="demo-grid">
+              <button type="button" class="demo-card" (click)="fillDemo('manager@servicecore.com')">
+                <div class="demo-avatar mgr">JC</div>
+                <div class="demo-info">
+                  <strong>Jacob Clark</strong>
+                  <span>Route Manager</span>
+                </div>
+              </button>
+              <button type="button" class="demo-card" (click)="fillDemo('admin@servicecore.com')">
+                <div class="demo-avatar hr">SM</div>
+                <div class="demo-info">
+                  <strong>Sarah Mitchell</strong>
+                  <span>HR Admin</span>
+                </div>
+              </button>
+              <button type="button" class="demo-card" (click)="fillDemo('payroll@servicecore.com')">
+                <div class="demo-avatar pay">LN</div>
+                <div class="demo-info">
+                  <strong>Lisa Nguyen</strong>
+                  <span>Payroll Admin</span>
+                </div>
+              </button>
+            </div>
+            <p class="demo-hint">Click any account above · password is <strong>demo</strong></p>
+          </div>
         </div>
       </div>
     </div>
   `,
   styles: [`
-    .login-wrapper {
+    .login-page {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Left Brand Panel ── */
+    .brand-panel {
+      width: 420px;
+      flex-shrink: 0;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f172a 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .brand-panel::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -40%;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(249, 115, 22, 0.12) 0%, transparent 70%);
+    }
+
+    .brand-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-logo {
+      margin-bottom: 24px;
+    }
+
+    .logo-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #1a1f36 0%, #2d3561 50%, #1a1f36 100%);
-      padding: 20px;
-    }
-
-    .login-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 48px 40px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-
-    .login-brand {
-      text-align: center;
-      margin-bottom: 36px;
-    }
-
-    .brand-icon {
-      font-size: 2.5rem;
-      color: var(--sc-accent, #4f8cff);
-      margin-bottom: 8px;
-    }
-
-    .login-brand h1 {
-      font-size: 1.8rem;
+      font-size: 1.2rem;
       font-weight: 800;
-      color: var(--sc-text-primary, #1e293b);
-      margin: 8px 0 4px;
+      letter-spacing: 1px;
+    }
+
+    .brand-panel h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 0 8px;
       letter-spacing: -0.5px;
     }
 
-    .brand-subtitle {
-      color: var(--sc-text-secondary, #64748b);
-      font-size: 0.9rem;
+    .brand-tagline {
+      color: #94a3b8;
+      font-size: 0.95rem;
+      margin: 0 0 48px;
+    }
+
+    .brand-features {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.88rem;
+    }
+
+    .feature i {
+      font-size: 1rem;
+      color: #f97316;
+      width: 20px;
+      text-align: center;
+    }
+
+    .brand-footer {
+      position: absolute;
+      bottom: 32px;
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 0.72rem;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Right Form Panel ── */
+    .form-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      background: #fafbfc;
+    }
+
+    .form-container {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .form-header {
+      margin-bottom: 32px;
+    }
+
+    .form-header h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 6px;
+    }
+
+    .form-header p {
+      color: #64748b;
+      font-size: 0.92rem;
       margin: 0;
     }
 
+    /* ── Form Fields ── */
     .login-form {
       display: flex;
       flex-direction: column;
@@ -144,100 +265,220 @@ import { AuthService } from '../../core/auth.service';
       gap: 6px;
     }
 
+    .field-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     .field label {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      color: var(--sc-text-primary, #1e293b);
+      color: #334155;
     }
 
-    .w-full {
+    .forgot-link {
+      font-size: 0.78rem;
+      color: #f97316;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .forgot-link:hover {
+      text-decoration: underline;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .input-wrap input {
       width: 100%;
+      padding: 12px 14px 12px 42px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      background: #fff;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .error-message {
+    .input-wrap input:focus {
+      outline: none;
+      border-color: #f97316;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .input-wrap input::placeholder {
+      color: #cbd5e1;
+    }
+
+    .error-bar {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 10px 14px;
       background: #fef2f2;
       border: 1px solid #fecaca;
-      border-radius: 8px;
+      border-radius: 10px;
       color: #dc2626;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
     }
 
-    .demo-accounts-outer {
+    .sign-in-btn {
       width: 100%;
-      max-width: 420px;
-      margin-top: 20px;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
-    .demo-title-outer {
-      font-size: 0.78rem;
+    .sign-in-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(249, 115, 22, 0.3);
+    }
+
+    .sign-in-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ── Demo Section ── */
+    .demo-section {
+      margin-top: 32px;
+    }
+
+    .demo-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .demo-divider::before, .demo-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e2e8f0;
+    }
+
+    .demo-divider span {
+      font-size: 0.72rem;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.5);
-      margin: 0 0 10px;
-      text-align: center;
+      color: #94a3b8;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
+      white-space: nowrap;
     }
 
-    .demo-title-outer span {
-      font-weight: 400;
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
-    .demo-list-outer {
+    .demo-grid {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .demo-btn-outer {
+    .demo-card {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 12px;
       padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
       cursor: pointer;
       transition: all 0.15s ease;
       font-family: inherit;
+      text-align: left;
+      width: 100%;
     }
 
-    .demo-btn-outer:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.3);
+    .demo-card:hover {
+      border-color: #f97316;
+      background: #fff7ed;
+      transform: translateX(3px);
     }
 
-    .demo-btn-outer strong {
-      font-size: 0.82rem;
-      color: rgba(255, 255, 255, 0.9);
+    .demo-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
     }
 
-    .demo-btn-outer span {
-      font-size: 0.78rem;
-      color: rgba(255, 255, 255, 0.5);
+    .demo-avatar.mgr { background: #3b82f6; }
+    .demo-avatar.hr { background: #8b5cf6; }
+    .demo-avatar.pay { background: #10b981; }
+
+    .demo-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
     }
 
-    .login-footer {
+    .demo-info strong {
+      font-size: 0.85rem;
+      color: #0f172a;
+    }
+
+    .demo-info span {
+      font-size: 0.74rem;
+      color: #64748b;
+    }
+
+    .demo-hint {
       text-align: center;
-      margin-top: 28px;
-      padding-top: 20px;
-      border-top: 1px solid var(--sc-border, #e2e6ed);
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin: 12px 0 0;
     }
 
-    .login-footer p {
-      color: var(--sc-text-secondary, #94a3b8);
-      font-size: 0.8rem;
-      margin: 0;
+    .demo-hint strong {
+      color: #64748b;
     }
 
-    @media (max-width: 480px) {
-      .login-card {
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .login-page {
+        flex-direction: column;
+      }
+      .brand-panel {
+        width: 100%;
         padding: 32px 24px;
+        min-height: auto;
+      }
+      .brand-features {
+        display: none;
+      }
+      .brand-footer {
+        display: none;
+      }
+      .form-panel {
+        padding: 32px 20px;
       }
     }
   `],
@@ -270,7 +511,7 @@ export class LoginPage {
       this.router.navigate(['/dashboard']);
     } catch (err: any) {
       this.errorMessage.set(
-        err?.error?.message || 'Invalid credentials. Please try again.'
+        err?.error?.error ?? err?.error?.message ?? 'Invalid credentials. Please try again.'
       );
     } finally {
       this.loading.set(false);

@@ -1,6 +1,8 @@
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -85,6 +87,13 @@ interface QueryResult {
             <span></span><span></span><span></span>
           </div>
           <p>Analyzing your question...</p>
+        </div>
+      }
+
+      @if (errorMessage()) {
+        <div class="error-state">
+          <i class="pi pi-exclamation-triangle"></i>
+          <p>{{ errorMessage() }}</p>
         </div>
       }
 
@@ -261,6 +270,14 @@ interface QueryResult {
       40% { opacity: 1; transform: scale(1); }
     }
 
+    .error-state {
+      text-align: center; padding: 32px 20px;
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--sc-radius-lg);
+      margin-bottom: var(--sc-space-5); color: #dc2626;
+    }
+    .error-state i { font-size: 1.5rem; margin-bottom: 8px; }
+    .error-state p { margin: 8px 0 0; font-size: 0.9rem; }
+
     /* ── Results ── */
     .results-section {
       display: flex;
@@ -356,9 +373,13 @@ interface QueryResult {
   `],
 })
 export class NlqPage {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
+
   queryText = '';
   loading = signal(false);
   result = signal<QueryResult | null>(null);
+  errorMessage = signal('');
 
   chartOptions = computed(() => {
     const r = this.result();
@@ -369,11 +390,11 @@ export class NlqPage {
   });
 
   suggestedQueries = [
-    'Which drivers are approaching overtime this week?',
-    "What's our labor cost per route this month?",
-    'Show me clock-in times for the past 2 weeks',
-    'Who has the most overtime hours this quarter?',
-    'Flag anyone who clocked in before 4 AM this week',
+    'Which drivers have the most overtime this month?',
+    "What's our total labor cost this month?",
+    'Show me hours by job type',
+    'How many employees worked this week?',
+    'Which job type costs us the most?',
   ];
 
   private hardcodedResults: Record<string, QueryResult> = {
@@ -527,18 +548,67 @@ ORDER BY hours_this_week DESC;`,
 
     this.loading.set(true);
     this.result.set(null);
+    this.errorMessage.set('');
 
-    const matched = this.hardcodedResults[q];
-    const delay = matched ? 1200 : 2000;
+    this.http.post<any>(`${this.apiUrl}/api/ai/nlq`, { query: q }).subscribe({
+      next: (res) => {
+        // Map the AI response to our QueryResult format
+        const chartData = res.chartData ?? {};
+        let queryResult: QueryResult;
 
-    setTimeout(() => {
-      if (matched) {
-        this.result.set(matched);
-      } else {
-        this.result.set(this.buildGenericResult(q));
-      }
-      this.loading.set(false);
-    }, delay);
+        if (res.chartType === 'bar' && chartData.labels) {
+          queryResult = {
+            sql: res.sql ?? '',
+            explanation: res.explanation ?? '',
+            chartType: 'bar',
+            chartOptions: {
+              tooltip: { trigger: 'axis' },
+              xAxis: { type: 'category', data: chartData.labels, axisLabel: { rotate: 15, fontSize: 11 } },
+              yAxis: { type: 'value', axisLabel: { formatter: '${value}' } },
+              series: (chartData.series ?? []).map((s: any) => ({
+                name: s.name, type: 'bar', stack: 'stack', data: s.data,
+                itemStyle: { color: s.name?.toLowerCase().includes('overtime') ? '#ef4444' : '#4f8cff' },
+              })),
+              legend: { data: (chartData.series ?? []).map((s: any) => s.name), bottom: 0 },
+              grid: { left: 60, right: 20, bottom: 60, top: 20 },
+            },
+          };
+        } else if (res.chartType === 'table' && chartData.columns) {
+          queryResult = {
+            sql: res.sql ?? '',
+            explanation: res.explanation ?? '',
+            chartType: 'table',
+            tableCols: chartData.columns,
+            tableData: chartData.rows ?? [],
+          };
+        } else if (res.chartType === 'number') {
+          queryResult = {
+            sql: res.sql ?? '',
+            explanation: res.explanation ?? '',
+            chartType: 'number',
+            kpiValue: chartData.value ?? '—',
+            kpiLabel: chartData.label ?? res.explanation ?? '',
+          };
+        } else {
+          // Fallback — show as KPI with the explanation
+          queryResult = {
+            sql: res.sql ?? '',
+            explanation: res.explanation ?? '',
+            chartType: 'number',
+            kpiValue: '—',
+            kpiLabel: res.explanation ?? 'No data returned',
+          };
+        }
+
+        this.result.set(queryResult);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        const msg = err?.error?.error?.message ?? err?.error?.message ?? 'Failed to process query';
+        this.errorMessage.set(msg);
+      },
+    });
   }
 
   private buildGenericResult(query: string): QueryResult {
