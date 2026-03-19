@@ -83,6 +83,15 @@ import { AuthService } from '../../core/auth.service';
         </ion-button>
       </div>
 
+      <div class="demo-section">
+        <p class="demo-label">Demo Accounts <span>(password: demo)</span></p>
+        <div class="demo-buttons">
+          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('driver@servicecore.com')">Driver (Carlos)</ion-button>
+          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('mike.chen@servicecore.com')">Mike Chen</ion-button>
+          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('tom.garcia@servicecore.com')">Tom Garcia</ion-button>
+        </div>
+      </div>
+
       <ion-toast
         [isOpen]="showError()"
         [message]="errorMessage()"
@@ -143,6 +152,40 @@ import { AuthService } from '../../core/auth.service';
         text-transform: uppercase;
         letter-spacing: 1px;
       }
+
+      .demo-section {
+        width: 100%;
+        max-width: 400px;
+        margin-top: 24px;
+        padding: 16px;
+        background: #f1f5f9;
+        border-radius: 10px;
+        border: 1px dashed #94a3b8;
+        text-align: center;
+      }
+
+      .demo-label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #475569;
+        margin: 0 0 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .demo-label span {
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        color: #94a3b8;
+      }
+
+      .demo-buttons {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
     `,
   ],
 })
@@ -157,6 +200,12 @@ export class LoginPage {
     private authService: AuthService,
     private router: Router
   ) {}
+
+  fillDemo(email: string): void {
+    this.email.set(email);
+    this.password.set('demo');
+    this.errorMessage.set('');
+  }
 
   async onLogin(): Promise<void> {
     if (this.loading()) return;

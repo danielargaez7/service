@@ -22,6 +22,20 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'employees',
+        loadComponent: () =>
+          import('./features/employees/employees.page').then(
+            (m) => m.EmployeesPage
+          ),
+      },
+      {
+        path: 'employees/:id',
+        loadComponent: () =>
+          import('./features/employees/employee-detail.page').then(
+            (m) => m.EmployeeDetailPage
+          ),
+      },
+      {
         path: 'timesheets',
         loadComponent: () =>
           import('./features/timesheets/timesheets.page').then(

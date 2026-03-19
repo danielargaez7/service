@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, AfterViewInit, OnDestroy, OnInit, NgZone, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, AfterViewInit, OnDestroy, OnInit, NgZone, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { CardModule } from 'primeng/card';
@@ -8,6 +8,9 @@ import {
   LeaderboardPeriod,
   ManagerGamificationService,
 } from '../../core/manager-gamification.service';
+import { HttpClient } from '@angular/common/http';
+import { TimesheetApiService } from '../../core/timesheet-api.service';
+import { environment } from '../../../environments/environment';
 
 interface KpiCard {
   label: string;
@@ -96,22 +99,22 @@ interface RiskBoardItem {
       </div>
 
       <div class="quick-actions">
-        <button type="button" class="quick-action-btn">
+        <button type="button" class="quick-action-btn" (click)="navigateTo('/timesheets')">
           <i class="pi pi-check-circle"></i>
           Approve Timesheets
-          <span class="quick-action-badge">12</span>
+          <span class="quick-action-badge">{{ pendingTimesheetCount() }}</span>
         </button>
-        <button type="button" class="quick-action-btn">
+        <button type="button" class="quick-action-btn" (click)="navigateTo('/payroll')">
           <i class="pi pi-dollar"></i>
           Run Payroll
         </button>
-        <button type="button" class="quick-action-btn">
+        <button type="button" class="quick-action-btn" (click)="navigateTo('/schedule')">
           <i class="pi pi-calendar"></i>
           View Schedule
         </button>
-        <button type="button" class="quick-action-btn">
-          <i class="pi pi-download"></i>
-          Export Report
+        <button type="button" class="quick-action-btn" (click)="navigateTo('/analytics')">
+          <i class="pi pi-chart-line"></i>
+          Analytics
         </button>
       </div>
 
@@ -157,8 +160,8 @@ interface RiskBoardItem {
           </div>
           <div class="panel-body">
             <div class="pending-approval-card">
-              <span class="pending-count">12 pending</span>
-              <p>8 clean entries ready now, 4 require manager review before payroll close.</p>
+              <span class="pending-count">{{ pendingTimesheetCount() }} pending</span>
+              <p>{{ exceptionsData().totalFlagged }} flagged entries require manager review before payroll close.</p>
             </div>
           </div>
         </div>
@@ -226,6 +229,22 @@ interface RiskBoardItem {
           </div>
         </div>
       </div>
+
+      <!-- AI Insights -->
+      @if (dashInsights().length > 0) {
+        <div class="insights-strip">
+          <div class="insights-strip-header">
+            <h3><i class="pi pi-lightbulb"></i> AI Insights</h3>
+            <button type="button" class="view-all-btn" (click)="navigateTo('/analytics')">View All Analytics</button>
+          </div>
+          @for (insight of dashInsights().slice(0, 3); track insight.title) {
+            <div class="insight-item" [class]="'insight-' + insight.severity">
+              <strong>{{ insight.title }}</strong>
+              <span>{{ insight.message }}</span>
+            </div>
+          }
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -355,16 +374,15 @@ interface RiskBoardItem {
 
     .kpi-card {
       background: var(--sc-card-bg);
-      border-radius: var(--sc-radius-lg);
-      padding: var(--sc-space-5);
+      border-radius: var(--sc-radius-md);
+      padding: 10px 16px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 4px;
       border: 1px solid var(--sc-border, #e2e6ed);
       border-left: 4px solid var(--sc-success-3);
       position: relative;
       transition: box-shadow 0.15s ease, transform 0.15s ease;
-      min-height: 154px;
     }
 
     .kpi-card.warning { border-left-color: var(--sc-warning-3); }
@@ -379,11 +397,11 @@ interface RiskBoardItem {
     }
     .kpi-value {
       color: var(--sc-sidebar-bg);
-      margin: var(--sc-space-2) 0;
+      font-size: 1.3rem;
       line-height: 1;
     }
     .kpi-sub {
-      font-size: var(--sc-text-sm);
+      font-size: var(--sc-text-xs);
       color: var(--sc-gray-3);
     }
     .kpi-trend {
@@ -571,7 +589,7 @@ interface RiskBoardItem {
       cursor: pointer;
     }
     .trend-bars {
-      height: 180px;
+      height: 110px;
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
@@ -706,6 +724,41 @@ interface RiskBoardItem {
       font-size: var(--sc-text-sm);
     }
 
+    /* -- AI Insights Strip -- */
+    .insights-strip {
+      margin-top: 20px;
+      background: var(--sc-card-bg);
+      border: 1px solid var(--sc-border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .insights-strip-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 14px;
+    }
+    .insights-strip-header h3 {
+      margin: 0; font-size: 1rem; font-weight: 700; color: var(--sc-text-primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .insights-strip-header h3 i { color: #f59e0b; }
+    .view-all-btn {
+      border: 1px solid var(--sc-border); background: var(--sc-card-bg);
+      color: var(--sc-blue); border-radius: var(--sc-radius-md);
+      padding: 6px 12px; font-size: 0.78rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .view-all-btn:hover { border-color: var(--sc-blue); }
+    .insight-item {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 12px 14px; border-radius: 10px; margin-bottom: 8px;
+      border: 1px solid var(--sc-border);
+    }
+    .insight-item strong { font-size: 0.85rem; color: var(--sc-text-primary); }
+    .insight-item span { font-size: 0.8rem; color: var(--sc-text-secondary); line-height: 1.4; }
+    .insight-critical { background: #fef2f2; border-color: #fecaca; }
+    .insight-warning { background: #fffbeb; border-color: #fde68a; }
+    .insight-info { background: #eff6ff; border-color: #bfdbfe; }
+
     :host-context(body.dark-mode) .kpi-card,
     :host-context(body.dark-mode) .panel,
     :host-context(body.dark-mode) .quick-action-btn {
@@ -797,8 +850,19 @@ interface RiskBoardItem {
   `],
 })
 export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
+  private readonly timesheetApi = inject(TimesheetApiService);
+  private readonly http = inject(HttpClient);
   private map: L.Map | null = null;
   showCriticalBanner = true;
+
+  // Live data signals
+  readonly dashInsights = signal<Array<{ type: string; severity: string; title: string; message: string }>>([]);
+  readonly activeDriverCount = signal(0);
+  readonly pendingTimesheetCount = signal(0);
+  readonly exceptionsData = signal<{ missedClockOuts: number; hosWarnings: number; otAlerts: number; totalFlagged: number }>({
+    missedClockOuts: 0, hosWarnings: 0, otAlerts: 0, totalFlagged: 0,
+  });
+
   readonly criticalAlerts = computed(() =>
     this.alerts.alerts().filter((alert) => alert.tier === 'critical')
   );
@@ -815,44 +879,48 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
       (alert) => alert.tier === 'critical' || alert.tier === 'high'
     )
   );
-  readonly kpiCards = computed<KpiCard[]>(() => [
-    {
-      label: 'Active Drivers',
-      value: '42',
-      subtext: 'of 48 on clock',
-      trend: '+3 vs yesterday',
-      trendDirection: 'up',
-      status: 'normal',
-      icon: 'pi-users',
-    },
-    {
-      label: "Today's Labor Cost",
-      value: '$18,420',
-      subtext: 'tracking above last week',
-      trend: '+5.2% vs last week',
-      trendDirection: 'down',
-      status: 'normal',
-      icon: 'pi-dollar',
-    },
-    {
-      label: 'Routes Complete',
-      value: '34/47',
-      subtext: '72% on pace',
-      trend: 'On track for close',
-      trendDirection: 'up',
-      status: 'normal',
-      icon: 'pi-directions',
-    },
-    {
-      label: 'Overtime Alerts',
-      value: this.highPriorityAlerts().length.toString(),
-      subtext: 'drivers over threshold',
-      trend: this.criticalAlerts().length > 0 ? `${this.criticalAlerts().length} critical now` : 'Monitor this afternoon',
-      trendDirection: this.criticalAlerts().length > 0 ? 'down' : 'neutral',
-      status: this.criticalAlerts().length > 0 ? 'danger' : 'warning',
-      icon: 'pi-bell',
-    },
-  ]);
+  readonly kpiCards = computed<KpiCard[]>(() => {
+    const exc = this.exceptionsData();
+    const totalAlerts = exc.otAlerts + exc.hosWarnings + exc.missedClockOuts;
+    return [
+      {
+        label: 'Active Drivers',
+        value: this.activeDriverCount().toString(),
+        subtext: 'currently on clock',
+        trend: 'Live count',
+        trendDirection: 'up',
+        status: 'normal',
+        icon: 'pi-users',
+      },
+      {
+        label: 'Pending Timesheets',
+        value: this.pendingTimesheetCount().toString(),
+        subtext: 'awaiting approval',
+        trend: exc.totalFlagged > 0 ? `${exc.totalFlagged} flagged` : 'All clear',
+        trendDirection: exc.totalFlagged > 0 ? 'down' : 'up',
+        status: exc.totalFlagged > 0 ? 'warning' : 'normal',
+        icon: 'pi-check-circle',
+      },
+      {
+        label: 'Missed Clock-Outs',
+        value: exc.missedClockOuts.toString(),
+        subtext: 'entries without clock-out',
+        trend: exc.missedClockOuts > 0 ? 'Needs attention' : 'All good',
+        trendDirection: exc.missedClockOuts > 0 ? 'down' : 'up',
+        status: exc.missedClockOuts > 0 ? 'danger' : 'normal',
+        icon: 'pi-clock',
+      },
+      {
+        label: 'Overtime / HOS Alerts',
+        value: totalAlerts.toString(),
+        subtext: `${exc.otAlerts} OT + ${exc.hosWarnings} HOS`,
+        trend: totalAlerts > 0 ? 'Review required' : 'No issues',
+        trendDirection: totalAlerts > 0 ? 'down' : 'neutral',
+        status: totalAlerts > 0 ? 'danger' : 'warning',
+        icon: 'pi-bell',
+      },
+    ];
+  });
 
   drivers: DriverMarker[] = [
     { name: 'Marcus Johnson', lat: 39.7592, lng: -104.9703, status: 'active', clockedIn: '6:02 AM', jobType: 'Residential Pickup', hours: 32.5 },
@@ -882,13 +950,13 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
   ]);
 
   laborTrend = [
-    { day: 'Mon', percent: 56 },
-    { day: 'Tue', percent: 72 },
-    { day: 'Wed', percent: 66 },
-    { day: 'Thu', percent: 84 },
-    { day: 'Fri', percent: 93 },
-    { day: 'Sat', percent: 61 },
-    { day: 'Sun', percent: 48 },
+    { day: 'Mon', percent: 42 },
+    { day: 'Tue', percent: 68 },
+    { day: 'Wed', percent: 55 },
+    { day: 'Thu', percent: 89 },
+    { day: 'Fri', percent: 100 },
+    { day: 'Sat', percent: 35 },
+    { day: 'Sun', percent: 18 },
   ];
   readonly leaderboardPeriods: Array<{ label: string; value: LeaderboardPeriod }> = [
     { label: 'Week', value: 'week' },
@@ -907,6 +975,58 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
     this.showCriticalBanner =
       sessionStorage.getItem('sc-critical-banner-dismissed') !== '1' &&
       this.criticalAlerts().length > 0;
+
+    // Fetch live KPI data from API
+    this.timesheetApi.getActive().subscribe({
+      next: (res) => {
+        this.activeDriverCount.set(res.count);
+        // Build real driver markers from active timesheets
+        this.drivers = res.data
+          .filter((entry: any) => entry.gpsClockIn)
+          .map((entry: any) => {
+            const gps = entry.gpsClockIn as any;
+            const emp = entry.employee;
+            const hoursIn = entry.clockIn
+              ? (Date.now() - new Date(entry.clockIn).getTime()) / (1000 * 60 * 60)
+              : 0;
+            return {
+              name: emp ? `${emp.firstName} ${emp.lastName}` : 'Unknown',
+              lat: gps.lat,
+              lng: gps.lng,
+              status: hoursIn > 9 ? 'ot-risk' as const : 'active' as const,
+              clockedIn: entry.clockIn
+                ? new Date(entry.clockIn).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                : '',
+              jobType: (entry.jobType ?? '').replace(/_/g, ' '),
+              hours: Math.round(hoursIn * 10) / 10,
+            };
+          });
+        // Re-init map with real data if already initialized
+        if (this.map) {
+          this.map.remove();
+          this.map = null;
+          this.ngZone.runOutsideAngular(() => this.initMap());
+        }
+      },
+    });
+
+    this.timesheetApi.getTimesheets({ status: 'PENDING', limit: 1 }).subscribe({
+      next: (res) => this.pendingTimesheetCount.set(res.total),
+    });
+
+    this.timesheetApi.getExceptions().subscribe({
+      next: (res) => this.exceptionsData.set(res.counts),
+    });
+
+    // Fetch AI insights
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const today = now.toISOString().split('T')[0];
+    this.http.get<{ data: any[] }>(`${environment.apiUrl}/api/analytics/insights`, {
+      params: { periodStart: monthStart, periodEnd: today },
+    }).subscribe({
+      next: (res) => this.dashInsights.set(res.data ?? []),
+    });
   }
 
   ngAfterViewInit(): void {
@@ -936,6 +1056,10 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
     }
 
     void this.router.navigateByUrl('/compliance');
+  }
+
+  navigateTo(path: string): void {
+    void this.router.navigateByUrl(path);
   }
 
   setLeaderboardPeriod(period: LeaderboardPeriod): void {

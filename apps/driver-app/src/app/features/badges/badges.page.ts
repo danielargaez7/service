@@ -88,7 +88,7 @@ import {
       <ion-card class="recent-card">
         <ion-card-header>
           <ion-card-title>Recent Awards</ion-card-title>
-          <ion-cardSubtitle>Badges land after nightly review, not mid-shift.</ion-cardSubtitle>
+          <ion-card-subtitle>Badges land after nightly review, not mid-shift.</ion-card-subtitle>
         </ion-card-header>
         <ion-list lines="none">
           @for (award of recentAwards(); track award.badge.id + award.awardedAt) {

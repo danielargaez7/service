@@ -1,24 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import {
-  PayrollPreview,
-  OvertimeResult,
-  TimesheetStatus,
-  JobType,
-  PayRate,
-  TimeEntry,
-  EmployeeClass,
-  Role,
-} from '@servicecore/shared-models';
+import { Role } from '@servicecore/shared-models';
 import { requireRole } from '../middleware/rbac.middleware';
 import { TimeTrexService } from '../services/timetrex.service';
-import { OvertimeService } from '../services/overtime.service';
-import { AnomalyService } from '../services/anomaly.service';
+import { payrollService } from '../services/payroll.service';
+import { getSupportedFormats } from '../services/payroll-formatters/index';
 
 export const payrollRouter = Router();
 const timetrexService = new TimeTrexService();
-const overtimeService = new OvertimeService();
-const anomalyService = new AnomalyService();
 const TIMETREX_INTEGRATION_ENABLED =
   process.env.TIMETREX_INTEGRATION_ENABLED === 'true';
 
@@ -38,48 +27,8 @@ payrollRouter.get(
 );
 
 // ---------------------------------------------------------------------------
-// Stub helpers
+// Schemas
 // ---------------------------------------------------------------------------
-const stubOT: OvertimeResult = {
-  regularHours: 40,
-  overtimeHours: 5.5,
-  doubleTimeHours: 0,
-  regularPay: 1200.0,
-  overtimePay: 247.5,
-  doubleTimePay: 0,
-  totalPay: 1447.5,
-  calculationMethod: 'CA_DAILY_WEEKLY',
-  warnings: ['Approaching weekly OT cap'],
-};
-
-const stubPayRate: PayRate = {
-  id: 'pr-001',
-  employeeId: 'emp-002',
-  jobType: JobType.RESIDENTIAL_SANITATION,
-  ratePerHour: 30.0,
-  effectiveFrom: new Date('2025-01-01'),
-  effectiveTo: null,
-};
-
-const stubEntry: TimeEntry = {
-  id: 'ts-001',
-  employeeId: 'emp-002',
-  clockIn: new Date('2026-03-10T06:00:00Z'),
-  clockOut: new Date('2026-03-10T14:30:00Z'),
-  jobType: JobType.RESIDENTIAL_SANITATION,
-  gpsIn: { lat: 34.0522, lng: -118.2437, accuracy: 5 },
-  gpsOut: { lat: 34.0525, lng: -118.244, accuracy: 4 },
-  photoInUrl: null,
-  photoOutUrl: null,
-  status: TimesheetStatus.APPROVED,
-  approvedById: 'emp-001',
-  approvedAt: new Date('2026-03-11T09:00:00Z'),
-  flagReason: null,
-  notes: null,
-  createdAt: new Date('2026-03-10T06:00:00Z'),
-  updatedAt: new Date('2026-03-11T09:00:00Z'),
-};
-
 const previewQuerySchema = z.object({
   periodStart: z
     .string()
@@ -89,6 +38,7 @@ const previewQuerySchema = z.object({
     .string()
     .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid periodEnd')
     .optional(),
+  employeeIds: z.string().optional(), // comma-separated
 });
 
 const exportSchema = z.object({
@@ -99,7 +49,7 @@ const exportSchema = z.object({
     .string()
     .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid periodEnd'),
   employeeIds: z.array(z.string()).optional(),
-  format: z.enum(['CSV', 'TIMETRIX', 'JSON']),
+  format: z.enum(['CSV', 'ADP', 'GUSTO', 'QUICKBOOKS', 'JSON', 'TIMETRIX']),
 });
 
 const whatIfSchema = z.object({
@@ -124,6 +74,17 @@ function apiError(
 }
 
 // ---------------------------------------------------------------------------
+// GET /formats — list supported export formats
+// ---------------------------------------------------------------------------
+payrollRouter.get(
+  '/formats',
+  requireRole(Role.PAYROLL_ADMIN, Role.HR_ADMIN, Role.SYSTEM_ADMIN),
+  (_req: Request, res: Response) => {
+    res.json({ formats: ['JSON', ...getSupportedFormats(), 'TIMETRIX'] });
+  }
+);
+
+// ---------------------------------------------------------------------------
 // GET /preview — pre-payroll audit report
 // ---------------------------------------------------------------------------
 payrollRouter.get(
@@ -135,80 +96,90 @@ payrollRouter.get(
     Role.SYSTEM_ADMIN
   ),
   async (req: Request, res: Response) => {
-  const parsed = previewQuerySchema.safeParse(req.query);
-  if (!parsed.success) {
-    apiError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      'Invalid payroll preview query parameters',
-      parsed.error.flatten()
-    );
-    return;
-  }
-
-  const { periodStart, periodEnd } = parsed.data;
-
-  if (TIMETREX_INTEGRATION_ENABLED) {
-    try {
-      const data = await timetrexService.previewPayroll({
-        periodStart,
-        periodEnd,
-      });
-      res.json({ data, source: 'timetrex' });
-      return;
-    } catch (error) {
+    const parsed = previewQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
       apiError(
         res,
-        502,
-        'TIMETREX_UPSTREAM_ERROR',
-        'Failed to fetch payroll preview from TimeTrex',
-        { message: (error as Error).message }
+        400,
+        'VALIDATION_ERROR',
+        'Invalid payroll preview query parameters',
+        parsed.error.flatten()
       );
       return;
     }
-  }
 
-  const calculatedOT = overtimeService.calculateForEntries(
-    'emp-002',
-    [stubEntry],
-    [stubPayRate],
-    {
-      employeeClass: EmployeeClass.CDL_B,
-      stateCode: 'CA',
-      isMotorCarrierExempt: false,
+    const { periodStart, periodEnd, employeeIds: empIdsStr } = parsed.data;
+
+    // TimeTrex passthrough
+    if (TIMETREX_INTEGRATION_ENABLED) {
+      try {
+        const data = await timetrexService.previewPayroll({
+          periodStart,
+          periodEnd,
+        });
+        res.json({ data, source: 'timetrex' });
+        return;
+      } catch (error) {
+        apiError(
+          res,
+          502,
+          'TIMETREX_UPSTREAM_ERROR',
+          'Failed to fetch payroll preview from TimeTrex',
+          { message: (error as Error).message }
+        );
+        return;
+      }
     }
-  );
-  const anomalyScores = await anomalyService.scoreTimesheetEntries([stubEntry]);
 
-  const preview: PayrollPreview = {
-    employeeId: 'emp-002',
-    employeeName: 'Carlos Rivera',
-    periodStart: periodStart ? new Date(periodStart) : new Date('2026-03-09'),
-    periodEnd: periodEnd ? new Date(periodEnd) : new Date('2026-03-15'),
-    entries: [stubEntry],
-    overtime: calculatedOT,
-    payRates: [stubPayRate],
-  };
+    // Default to current semi-monthly period
+    const now = new Date();
+    const start = periodStart
+      ? new Date(periodStart)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = periodEnd
+      ? new Date(periodEnd)
+      : new Date(now.getFullYear(), now.getMonth(), 15);
 
-  res.json({
-    data: [preview],
-    period: {
-      start: (periodStart ?? '2026-03-09'),
-      end: (periodEnd ?? '2026-03-15'),
-    },
-    anomalyScores,
-    source: 'stub',
-  });
+    const empIds = empIdsStr ? empIdsStr.split(',').map((s) => s.trim()) : undefined;
+
+    try {
+      const preview = await payrollService.generatePreview(start, end, empIds);
+
+      // Compute totals
+      const totals = preview.reduce(
+        (acc, row) => ({
+          employees: acc.employees + 1,
+          totalHours: acc.totalHours + row.regularHours + row.overtimeHours + row.doubleTimeHours,
+          regularHours: acc.regularHours + row.regularHours,
+          overtimeHours: acc.overtimeHours + row.overtimeHours,
+          totalPay: acc.totalPay + row.totalPay,
+          flaggedItems: acc.flaggedItems + row.warnings.length,
+        }),
+        { employees: 0, totalHours: 0, regularHours: 0, overtimeHours: 0, totalPay: 0, flaggedItems: 0 }
+      );
+
+      res.json({
+        data: preview,
+        totals,
+        period: {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+        },
+        source: 'database',
+      });
+    } catch (error) {
+      console.error('[payroll/preview]', error);
+      apiError(res, 500, 'PREVIEW_ERROR', 'Failed to generate payroll preview');
+    }
   }
 );
 
 // ---------------------------------------------------------------------------
-// POST /export — trigger QuickBooks / TimeTrex export
+// POST /export — export payroll to ADP / Gusto / QuickBooks / CSV / JSON
 // ---------------------------------------------------------------------------
 payrollRouter.post(
   '/export',
-  requireRole(Role.PAYROLL_ADMIN, Role.SYSTEM_ADMIN),
+  requireRole(Role.PAYROLL_ADMIN, Role.HR_ADMIN, Role.SYSTEM_ADMIN),
   async (req: Request, res: Response) => {
     const parsed = exportSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -224,7 +195,8 @@ payrollRouter.post(
 
     const payload = parsed.data;
 
-    if (TIMETREX_INTEGRATION_ENABLED) {
+    // TimeTrex passthrough
+    if (TIMETREX_INTEGRATION_ENABLED && payload.format === 'TIMETRIX') {
       try {
         const exportResult = await timetrexService.exportPayroll(payload);
         res.status(202).json({ data: exportResult, source: 'timetrex' });
@@ -241,16 +213,28 @@ payrollRouter.post(
       }
     }
 
-    res.status(202).json({
-      exportId: `exp-${Date.now()}`,
-      status: 'QUEUED',
-      format: payload.format,
-      periodStart: payload.periodStart,
-      periodEnd: payload.periodEnd,
-      estimatedRecords: 24,
-      message: 'Payroll export job queued',
-      source: 'stub',
-    });
+    try {
+      const result = await payrollService.exportPayroll(
+        new Date(payload.periodStart),
+        new Date(payload.periodEnd),
+        payload.format,
+        req.user?.sub ?? 'unknown',
+        payload.employeeIds
+      );
+
+      if ('json' in result) {
+        res.json({ data: result.json, format: 'JSON', source: 'database' });
+        return;
+      }
+
+      // CSV download
+      res.setHeader('Content-Type', result.contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      res.send(result.csv);
+    } catch (error) {
+      console.error('[payroll/export]', error);
+      apiError(res, 500, 'EXPORT_ERROR', (error as Error).message);
+    }
   }
 );
 
@@ -265,7 +249,7 @@ payrollRouter.post(
     Role.PAYROLL_ADMIN,
     Role.SYSTEM_ADMIN
   ),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const parsed = whatIfSchema.safeParse(req.body);
     if (!parsed.success) {
       apiError(
@@ -278,24 +262,45 @@ payrollRouter.post(
       return;
     }
 
-    const { employeeId, additionalHours } = parsed.data;
+    const { additionalHours } = parsed.data;
 
-    const simulated: OvertimeResult = {
-      ...stubOT,
-      overtimeHours: stubOT.overtimeHours + additionalHours,
-      overtimePay: stubOT.overtimePay + additionalHours * 45,
-      totalPay: stubOT.totalPay + additionalHours * 45,
-      warnings: [
-        ...stubOT.warnings,
-        `Simulated ${additionalHours}h additional — OT cost impact shown`,
-      ],
-    };
+    // Get real baseline from current period
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd = new Date(now.getFullYear(), now.getMonth(), 15);
 
-    res.json({
-      employeeId: employeeId ?? 'emp-002',
-      baseline: stubOT,
-      simulated,
-      costDelta: additionalHours * 45,
-    });
+    try {
+      const preview = await payrollService.generatePreview(periodStart, periodEnd);
+      const baseline = preview.reduce(
+        (acc, r) => ({
+          regularHours: acc.regularHours + r.regularHours,
+          overtimeHours: acc.overtimeHours + r.overtimeHours,
+          totalPay: acc.totalPay + r.totalPay,
+        }),
+        { regularHours: 0, overtimeHours: 0, totalPay: 0 }
+      );
+
+      // Simulate: additional hours per employee at avg OT rate
+      const avgRate = preview.length > 0
+        ? preview.reduce((sum, r) => sum + r.hourlyRate, 0) / preview.length
+        : 30;
+      const otRate = avgRate * 1.5;
+      const costDelta = additionalHours * preview.length * otRate;
+
+      res.json({
+        baseline,
+        simulated: {
+          regularHours: baseline.regularHours,
+          overtimeHours: baseline.overtimeHours + (additionalHours * preview.length),
+          totalPay: baseline.totalPay + costDelta,
+        },
+        costDelta,
+        employeesAffected: preview.length,
+        additionalHoursPerEmployee: additionalHours,
+      });
+    } catch (error) {
+      console.error('[payroll/what-if]', error);
+      apiError(res, 500, 'WHAT_IF_ERROR', 'Failed to run simulation');
+    }
   }
 );

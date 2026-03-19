@@ -47,5 +47,5 @@ export interface PayrollExportRequest {
   periodStart: string;
   periodEnd: string;
   employeeIds?: string[];
-  format: 'CSV' | 'TIMETRIX' | 'JSON';
+  format: 'CSV' | 'ADP' | 'GUSTO' | 'QUICKBOOKS' | 'JSON' | 'TIMETRIX';
 }

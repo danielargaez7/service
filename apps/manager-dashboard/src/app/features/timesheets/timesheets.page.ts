@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, signal, inject, OnInit } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
@@ -8,8 +8,11 @@ import { DialogModule } from 'primeng/dialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
+import { BadgeModule } from 'primeng/badge';
 import { ReportFilterBarComponent } from '../../shared/report-filter-bar.component';
 import { ManagerAlertsService } from '../../core/manager-alerts.service';
+import { Router } from '@angular/router';
+import { TimesheetApiService, type TimesheetEntry as ApiTimesheetEntry } from '../../core/timesheet-api.service';
 
 type TimesheetStatus = 'PENDING' | 'APPROVED' | 'FLAGGED' | 'REJECTED' | 'EXPORTED';
 type EditField = 'clockIn' | 'clockOut' | 'breakDuration';
@@ -35,7 +38,7 @@ interface AuditEntry {
 }
 
 interface TimesheetEntry {
-  id: number;
+  id: string;
   employeeName: string;
   employeeId: string;
   date: string;
@@ -61,10 +64,79 @@ interface TimesheetEntry {
 }
 
 interface EditState {
-  entryId: number;
+  entryId: string;
   field: EditField;
   value: string;
   reason: ReasonCode;
+}
+
+function mapApiEntry(entry: ApiTimesheetEntry): TimesheetEntry {
+  const clockInDate = new Date(entry.clockIn);
+  const clockOutDate = entry.clockOut ? new Date(entry.clockOut) : null;
+  const hours = entry.hoursWorked ?? (clockOutDate
+    ? (clockOutDate.getTime() - clockInDate.getTime()) / (1000 * 60 * 60)
+    : 0);
+  const regularHours = entry.regularHours ?? Math.min(hours, 8);
+  const otHours = entry.overtimeHours ?? Math.max(0, hours - 8);
+  const gps = entry.gpsClockIn;
+  const hasGpsMismatch = (entry.anomalyFlags ?? []).includes('gps-mismatch');
+
+  return {
+    id: entry.id,
+    employeeName: entry.employee ? `${entry.employee.firstName} ${entry.employee.lastName}` : entry.employeeId,
+    employeeId: entry.employeeId,
+    date: clockInDate.toISOString().split('T')[0],
+    jobType: (entry.jobType ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    status: entry.status as TimesheetStatus,
+    clockIn: clockInDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    clockOut: clockOutDate ? clockOutDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : null,
+    breakDuration: 0,
+    regularHours: Number(regularHours),
+    otHours: Number(otHours),
+    totalPay: 0, // Calculated server-side in payroll
+    anomalyScore: entry.anomalyScore ?? 0,
+    gpsMatch: !hasGpsMismatch,
+    routeMatch: !(entry.anomalyFlags ?? []).includes('route-mismatch'),
+    anomalyFlags: entry.anomalyFlags ?? [],
+    gpsLat: gps?.lat ?? 0,
+    gpsLng: gps?.lng ?? 0,
+    photoUrl: '',
+    routeName: entry.routeId ?? '',
+    routeCode: entry.routeId ?? '',
+    activityLog: buildActivityLog(entry),
+    auditTrail: [],
+  };
+}
+
+function buildActivityLog(entry: ApiTimesheetEntry): ActivityEvent[] {
+  const events: ActivityEvent[] = [];
+  const clockIn = new Date(entry.clockIn);
+  events.push({
+    time: clockIn.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    label: `Clock In${entry.gpsClockIn ? ' (GPS: verified)' : ''}`,
+  });
+  if (entry.routeId) {
+    events.push({
+      time: new Date(clockIn.getTime() + 10 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      label: `Route started: ${entry.routeId}`,
+    });
+  }
+  if (entry.anomalyFlags?.length) {
+    events.push({
+      time: '--',
+      label: `Flags: ${entry.anomalyFlags.join(', ')}`,
+    });
+  }
+  if (entry.clockOut) {
+    const clockOut = new Date(entry.clockOut);
+    events.push({
+      time: clockOut.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      label: `Clock Out${entry.gpsClockOut ? ' (GPS: verified)' : ''}`,
+    });
+  } else {
+    events.push({ time: 'Active', label: 'Still active — no clock-out captured yet' });
+  }
+  return events;
 }
 
 const REASON_CODES: ReasonCode[] = [
@@ -75,222 +147,6 @@ const REASON_CODES: ReasonCode[] = [
   'Other',
 ];
 
-const MOCK_TIMESHEETS: TimesheetEntry[] = [
-  {
-    id: 1,
-    employeeName: 'Carlos Mendoza',
-    employeeId: 'EMP-001',
-    date: '2026-03-14',
-    jobType: 'Residential Route',
-    status: 'PENDING',
-    clockIn: '06:00',
-    clockOut: '14:30',
-    breakDuration: 30,
-    regularHours: 8,
-    otHours: 0,
-    totalPay: 224,
-    anomalyScore: 0.12,
-    gpsMatch: true,
-    routeMatch: true,
-    anomalyFlags: [],
-    gpsLat: 29.7604,
-    gpsLng: -95.3698,
-    photoUrl: '/assets/photos/emp001-20260314.jpg',
-    routeName: 'South Residential',
-    routeCode: 'R-447',
-    activityLog: [
-      { time: '06:00 AM', label: 'Clock In (GPS: Yard confirmed, Photo: Verified)' },
-      { time: '06:12 AM', label: 'Route started: South Residential (ServiceCore Route #R-447)' },
-      { time: '10:15 AM', label: 'Break started (30 min unpaid)' },
-      { time: '10:45 AM', label: 'Break ended' },
-      { time: '02:12 PM', label: 'Route completed (41 stops / 41 scheduled)' },
-      { time: '02:30 PM', label: 'Clock Out (GPS: Yard confirmed)' },
-    ],
-    auditTrail: [],
-  },
-  {
-    id: 3,
-    employeeName: 'Ahmad Hassan',
-    employeeId: 'EMP-002',
-    date: '2026-03-14',
-    jobType: 'Commercial Pickup',
-    status: 'FLAGGED',
-    clockIn: '07:00',
-    clockOut: '17:30',
-    breakDuration: 15,
-    regularHours: 8,
-    otHours: 2.25,
-    totalPay: 313.5,
-    anomalyScore: 0.78,
-    gpsMatch: false,
-    routeMatch: false,
-    anomalyFlags: ['Overtime exceeds 10h', 'GPS mismatch at 14:22', 'Late clock-in vs scheduled'],
-    gpsLat: 29.7515,
-    gpsLng: -95.358,
-    photoUrl: '/assets/photos/emp002-20260314.jpg',
-    routeName: 'Downtown Commercial',
-    routeCode: 'C-114',
-    activityLog: [
-      { time: '07:00 AM', label: 'Clock In (GPS: Outside assigned geofence)' },
-      { time: '07:14 AM', label: 'Route started: Downtown Commercial (ServiceCore Route #C-114)' },
-      { time: '02:22 PM', label: 'GPS mismatch detected during route handoff' },
-      { time: '05:30 PM', label: 'Clock Out (GPS: Yard mismatch)' },
-    ],
-    auditTrail: [],
-  },
-  {
-    id: 7,
-    employeeName: 'James Wilson',
-    employeeId: 'EMP-004',
-    date: '2026-03-14',
-    jobType: 'Roll-Off Delivery',
-    status: 'FLAGGED',
-    clockIn: '05:30',
-    clockOut: '16:45',
-    breakDuration: 0,
-    regularHours: 8,
-    otHours: 3.25,
-    totalPay: 348.25,
-    anomalyScore: 0.85,
-    gpsMatch: true,
-    routeMatch: true,
-    anomalyFlags: ['Overtime exceeds 11h', 'No break logged in 6h window', 'Speed anomaly at 10:15'],
-    gpsLat: 29.72,
-    gpsLng: -95.4,
-    photoUrl: '/assets/photos/emp004-20260314.jpg',
-    routeName: 'North Roll-Off',
-    routeCode: 'RO-51',
-    activityLog: [
-      { time: '05:30 AM', label: 'Clock In (GPS: Yard confirmed, Photo: Verified)' },
-      { time: '05:42 AM', label: 'Route started: North Roll-Off (ServiceCore Route #RO-51)' },
-      { time: '10:15 AM', label: 'Speed anomaly recorded on outbound segment' },
-      { time: '04:45 PM', label: 'Clock Out (GPS: Yard confirmed)' },
-    ],
-    auditTrail: [],
-  },
-  {
-    id: 9,
-    employeeName: 'Dwayne Thompson',
-    employeeId: 'EMP-005',
-    date: '2026-03-14',
-    jobType: 'Recycling Route',
-    status: 'PENDING',
-    clockIn: '06:00',
-    clockOut: '14:30',
-    breakDuration: 30,
-    regularHours: 8,
-    otHours: 0,
-    totalPay: 216,
-    anomalyScore: 0.18,
-    gpsMatch: true,
-    routeMatch: true,
-    anomalyFlags: [],
-    gpsLat: 29.74,
-    gpsLng: -95.39,
-    photoUrl: '/assets/photos/emp005-20260314.jpg',
-    routeName: 'East Recycling',
-    routeCode: 'RC-31',
-    activityLog: [
-      { time: '06:00 AM', label: 'Clock In (GPS: Yard confirmed)' },
-      { time: '06:11 AM', label: 'Route started: East Recycling (ServiceCore Route #RC-31)' },
-      { time: '10:30 AM', label: 'Break started (30 min unpaid)' },
-      { time: '11:00 AM', label: 'Break ended' },
-      { time: '02:30 PM', label: 'Clock Out (GPS: Yard confirmed)' },
-    ],
-    auditTrail: [],
-  },
-  {
-    id: 11,
-    employeeName: 'Roberto Garcia',
-    employeeId: 'EMP-006',
-    date: '2026-03-14',
-    jobType: 'Commercial Pickup',
-    status: 'PENDING',
-    clockIn: '07:00',
-    clockOut: '15:30',
-    breakDuration: 30,
-    regularHours: 8,
-    otHours: 0,
-    totalPay: 232,
-    anomalyScore: 0.28,
-    gpsMatch: true,
-    routeMatch: true,
-    anomalyFlags: [],
-    gpsLat: 29.765,
-    gpsLng: -95.355,
-    photoUrl: '/assets/photos/emp006-20260314.jpg',
-    routeName: 'Northgate Commercial',
-    routeCode: 'C-330',
-    activityLog: [
-      { time: '07:00 AM', label: 'Clock In (GPS: Yard confirmed)' },
-      { time: '07:08 AM', label: 'Route started: Northgate Commercial (ServiceCore Route #C-330)' },
-      { time: '11:45 AM', label: 'Break started (30 min unpaid)' },
-      { time: '12:15 PM', label: 'Break ended' },
-      { time: '03:30 PM', label: 'Clock Out (GPS: Yard confirmed)' },
-    ],
-    auditTrail: [],
-  },
-  {
-    id: 14,
-    employeeName: 'Lisa Chen',
-    employeeId: 'EMP-008',
-    date: '2026-03-14',
-    jobType: 'Admin / Dispatch',
-    status: 'APPROVED',
-    clockIn: '08:00',
-    clockOut: '16:30',
-    breakDuration: 30,
-    regularHours: 8,
-    otHours: 0,
-    totalPay: 248,
-    anomalyScore: 0.04,
-    gpsMatch: true,
-    routeMatch: true,
-    anomalyFlags: [],
-    gpsLat: 29.7604,
-    gpsLng: -95.3698,
-    photoUrl: '/assets/photos/emp008-20260314.jpg',
-    routeName: 'Dispatch HQ',
-    routeCode: 'HQ-01',
-    activityLog: [
-      { time: '08:00 AM', label: 'Clock In (HQ confirmed)' },
-      { time: '12:00 PM', label: 'Break started (30 min unpaid)' },
-      { time: '12:30 PM', label: 'Break ended' },
-      { time: '04:30 PM', label: 'Clock Out (HQ confirmed)' },
-    ],
-    auditTrail: [],
-  },
-  {
-    id: 16,
-    employeeName: 'Marcus Brown',
-    employeeId: 'EMP-009',
-    date: '2026-03-14',
-    jobType: 'Roll-Off Delivery',
-    status: 'FLAGGED',
-    clockIn: '05:00',
-    clockOut: null,
-    breakDuration: 0,
-    regularHours: 8,
-    otHours: 4,
-    totalPay: 392,
-    anomalyScore: 0.92,
-    gpsMatch: true,
-    routeMatch: false,
-    anomalyFlags: ['Overtime exceeds 12h', 'No break logged', 'HOS daily limit warning'],
-    gpsLat: 29.71,
-    gpsLng: -95.41,
-    photoUrl: '/assets/photos/emp009-20260314.jpg',
-    routeName: 'West Roll-Off',
-    routeCode: 'RO-77',
-    activityLog: [
-      { time: '05:00 AM', label: 'Clock In (GPS: Yard confirmed)' },
-      { time: '05:14 AM', label: 'Route started: West Roll-Off (ServiceCore Route #RO-77)' },
-      { time: '03:45 PM', label: 'HOS daily limit warning raised' },
-      { time: 'Active', label: 'Still active — no clock-out captured yet' },
-    ],
-    auditTrail: [],
-  },
-];
 
 @Component({
   standalone: true,
@@ -304,6 +160,7 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
     TooltipModule,
     SelectModule,
     InputTextModule,
+    BadgeModule,
     ReportFilterBarComponent,
     CurrencyPipe,
     DatePipe,
@@ -326,8 +183,8 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
             <button pButton type="button" icon="pi pi-check-circle" label="Approve Selected"
               [disabled]="selectedIds().length === 0" (click)="approveSelected()"></button>
           } @else {
-            <button pButton type="button" icon="pi pi-check-circle" label="Approve All Pending"
-              [badge]="pendingCount().toString()" badgeClass="p-badge-warning" (click)="approveAllPending()"></button>
+            <button pButton type="button" icon="pi pi-check-circle"
+              [label]="'Approve All Pending (' + pendingCount() + ')'" (click)="approveAllPending()"></button>
           }
         </div>
       </div>
@@ -450,7 +307,7 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
             </td>
             <td>
               @if (entry.anomalyFlags.length > 0) {
-                <p-tag value="ANOMALY" severity="danger" [pTooltip]="entry.anomalyFlags.join(' • ')"></p-tag>
+                <i class="pi pi-exclamation-circle anomaly-icon" [pTooltip]="entry.anomalyFlags.join(' • ')" tooltipPosition="left"></i>
               }
             </td>
             <td>
@@ -505,11 +362,11 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
       </p-table>
 
       <p-dialog header="Manager Correction" [(visible)]="editDialogVisible" [modal]="true" [style]="{ width: '30rem' }">
-        @if (editState() as edit) {
+        @if (editState()) {
           <div class="edit-dialog-body">
             <div class="form-field">
-              <label>{{ edit.field === 'breakDuration' ? 'Break Duration (minutes)' : (edit.field === 'clockIn' ? 'Clock In Time' : 'Clock Out Time') }}</label>
-              <input pInputText [(ngModel)]="editValue" [type]="edit.field === 'breakDuration' ? 'number' : 'time'" />
+              <label>{{ editState()!.field === 'breakDuration' ? 'Break Duration (minutes)' : (editState()!.field === 'clockIn' ? 'Clock In Time' : 'Clock Out Time') }}</label>
+              <input pInputText [(ngModel)]="editValue" [type]="editState()!.field === 'breakDuration' ? 'number' : 'time'" />
             </div>
             <div class="form-field">
               <label>Reason Code</label>
@@ -579,6 +436,8 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
     .match-good { color: var(--sc-success-4); }
     .match-warn { color: var(--sc-warning-4); }
 
+    .anomaly-icon { color: var(--sc-danger-3); font-size: 1.1rem; cursor: help; }
+
     .action-buttons { display: flex; gap: 4px; opacity: 0.3; transition: opacity 0.15s ease; }
     :host ::ng-deep .sc-timesheet-table .p-datatable-tbody > tr:hover .action-buttons { opacity: 1; }
 
@@ -626,14 +485,18 @@ const MOCK_TIMESHEETS: TimesheetEntry[] = [
     }
   `],
 })
-export class TimesheetsPage {
-  readonly entries = signal<TimesheetEntry[]>(MOCK_TIMESHEETS);
+export class TimesheetsPage implements OnInit {
+  private readonly api = inject(TimesheetApiService);
+  private readonly alerts = inject(ManagerAlertsService);
+
+  readonly entries = signal<TimesheetEntry[]>([]);
+  readonly loading = signal(false);
   readonly searchTerm = signal('');
   readonly statusFilter = signal<string | null>(null);
   readonly dateFrom = signal('');
   readonly dateTo = signal('');
   readonly approveMode = signal(false);
-  readonly selectedIds = signal<number[]>([]);
+  readonly selectedIds = signal<string[]>([]);
   readonly editState = signal<EditState | null>(null);
   readonly statusOptions = [
     { label: 'Pending', value: 'PENDING' },
@@ -644,7 +507,7 @@ export class TimesheetsPage {
   ];
   readonly reasonOptions = REASON_CODES.map((reason) => ({ label: reason, value: reason }));
 
-  expandedRows: Record<number, boolean> = {};
+  expandedRows: Record<string, boolean> = {};
   editDialogVisible = false;
   editValue = '';
   editReason: ReasonCode = 'Manager Correction';
@@ -672,7 +535,23 @@ export class TimesheetsPage {
     this.entries().filter((entry) => entry.status === 'PENDING').length
   );
 
-  constructor(private readonly alerts: ManagerAlertsService) {}
+  ngOnInit(): void {
+    this.loadTimesheets();
+  }
+
+  loadTimesheets(): void {
+    this.loading.set(true);
+    this.api.getTimesheets({ limit: 100 }).subscribe({
+      next: (res) => {
+        this.entries.set(res.data.map(mapApiEntry));
+        this.loading.set(false);
+      },
+      error: () => {
+        this.alerts.high('Failed to load timesheets', 'Could not connect to the API. Please try again.');
+        this.loading.set(false);
+      },
+    });
+  }
 
   getJobTypeSeverity(jobType: string): 'success' | 'info' | 'warn' | 'secondary' {
     if (jobType.includes('Residential')) return 'success';
@@ -686,11 +565,11 @@ export class TimesheetsPage {
     this.selectedIds.set([]);
   }
 
-  isSelected(id: number): boolean {
+  isSelected(id: string): boolean {
     return this.selectedIds().includes(id);
   }
 
-  toggleSelection(id: number, checked: boolean): void {
+  toggleSelection(id: string, checked: boolean): void {
     this.selectedIds.update((ids) =>
       checked ? [...ids, id] : ids.filter((item) => item !== id)
     );
@@ -707,37 +586,62 @@ export class TimesheetsPage {
   }
 
   approveSelected(): void {
-    const ids = new Set(this.selectedIds());
-    this.entries.update((entries) =>
-      entries.map((entry) => ids.has(entry.id) ? { ...entry, status: 'APPROVED' } : entry)
-    );
-    this.alerts.medium('Batch approval complete', `${ids.size} clean timesheets were approved in one batch.`, '/timesheets');
-    this.selectedIds.set([]);
+    const ids = [...this.selectedIds()];
+    this.api.bulkApprove(ids).subscribe({
+      next: () => {
+        this.entries.update((entries) =>
+          entries.map((entry) => ids.includes(entry.id) ? { ...entry, status: 'APPROVED' } : entry)
+        );
+        this.alerts.medium('Batch approval complete', `${ids.length} clean timesheets were approved in one batch.`, '/timesheets');
+        this.selectedIds.set([]);
+      },
+      error: () => this.alerts.high('Approval failed', 'Could not approve the selected timesheets.'),
+    });
   }
 
   approveAllPending(): void {
-    const count = this.pendingCount();
-    this.entries.update((entries) =>
-      entries.map((entry) => entry.status === 'PENDING' ? { ...entry, status: 'APPROVED' } : entry)
-    );
-    this.alerts.medium('Bulk approval complete', `${count} pending timesheets were approved.`, '/timesheets');
+    const pendingIds = this.entries()
+      .filter((e) => e.status === 'PENDING')
+      .map((e) => e.id);
+
+    if (pendingIds.length === 0) return;
+
+    this.api.bulkApprove(pendingIds).subscribe({
+      next: () => {
+        this.entries.update((entries) =>
+          entries.map((entry) => entry.status === 'PENDING' ? { ...entry, status: 'APPROVED' } : entry)
+        );
+        this.alerts.medium('Bulk approval complete', `${pendingIds.length} pending timesheets were approved.`, '/timesheets');
+      },
+      error: () => this.alerts.high('Approval failed', 'Could not approve pending timesheets.'),
+    });
   }
 
   approveEntry(entry: TimesheetEntry): void {
-    this.updateStatus(entry.id, 'APPROVED');
-    this.alerts.low('Timesheet approved', `${entry.employeeName}'s timesheet for ${entry.date} was approved.`, '/timesheets');
+    this.api.approve(entry.id).subscribe({
+      next: () => {
+        this.updateStatus(entry.id, 'APPROVED');
+        this.alerts.low('Timesheet approved', `${entry.employeeName}'s timesheet for ${entry.date} was approved.`, '/timesheets');
+      },
+      error: () => this.alerts.high('Approval failed', `Could not approve ${entry.employeeName}'s timesheet.`),
+    });
   }
 
   flagEntry(entry: TimesheetEntry): void {
-    this.updateStatus(entry.id, 'FLAGGED');
-    if (entry.anomalyFlags.length > 1 || entry.anomalyScore > 0.6) {
-      this.alerts.high('High-risk timesheet flagged', `${entry.employeeName}'s entry has multiple anomalies and needs review.`, '/timesheets');
-      return;
-    }
-    this.alerts.medium('Timesheet flagged for review', `${entry.employeeName}'s entry was flagged for manager review.`, '/timesheets');
+    this.api.reject(entry.id, 'Flagged for review by manager').subscribe({
+      next: () => {
+        this.updateStatus(entry.id, 'FLAGGED');
+        if (entry.anomalyFlags.length > 1 || entry.anomalyScore > 0.6) {
+          this.alerts.high('High-risk timesheet flagged', `${entry.employeeName}'s entry has multiple anomalies and needs review.`, '/timesheets');
+          return;
+        }
+        this.alerts.medium('Timesheet flagged for review', `${entry.employeeName}'s entry was flagged for manager review.`, '/timesheets');
+      },
+      error: () => this.alerts.high('Flag failed', `Could not flag ${entry.employeeName}'s timesheet.`),
+    });
   }
 
-  updateStatus(id: number, status: TimesheetStatus): void {
+  updateStatus(id: string, status: TimesheetStatus): void {
     this.entries.update((entries) =>
       entries.map((entry) => entry.id === id ? { ...entry, status } : entry)
     );
@@ -800,10 +704,12 @@ export class TimesheetsPage {
   }
 
   exportData(): void {
-    this.alerts.low('Export queued', 'Timesheet export was queued for payroll reporting.', '/timesheets');
+    this.router.navigateByUrl('/payroll');
   }
 
   toggleColumns(): void {
-    this.alerts.low('Column chooser coming next', 'Dynamic table column controls are not implemented yet.', '/timesheets');
+    // No-op for MVP
   }
+
+  private readonly router = inject(Router);
 }

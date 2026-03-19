@@ -71,6 +71,21 @@ import { AuthService } from '../../core/auth.service';
           <p>Time Tracking & Workforce Management</p>
         </div>
       </div>
+
+      <div class="demo-accounts-outer">
+        <p class="demo-title-outer">Demo Accounts <span>(password: demo)</span></p>
+        <div class="demo-list-outer">
+          <button type="button" class="demo-btn-outer" (click)="fillDemo('manager@servicecore.com')">
+            <strong>Manager</strong><span>manager&#64;servicecore.com</span>
+          </button>
+          <button type="button" class="demo-btn-outer" (click)="fillDemo('admin@servicecore.com')">
+            <strong>HR Admin</strong><span>admin&#64;servicecore.com</span>
+          </button>
+          <button type="button" class="demo-btn-outer" (click)="fillDemo('payroll@servicecore.com')">
+            <strong>Payroll</strong><span>payroll&#64;servicecore.com</span>
+          </button>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -151,6 +166,62 @@ import { AuthService } from '../../core/auth.service';
       font-size: 0.85rem;
     }
 
+    .demo-accounts-outer {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 20px;
+    }
+
+    .demo-title-outer {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      margin: 0 0 10px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .demo-title-outer span {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .demo-list-outer {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .demo-btn-outer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .demo-btn-outer:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .demo-btn-outer strong {
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .demo-btn-outer span {
+      font-size: 0.78rem;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
     .login-footer {
       text-align: center;
       margin-top: 28px;
@@ -181,6 +252,12 @@ export class LoginPage {
     private auth: AuthService,
     private router: Router
   ) {}
+
+  fillDemo(email: string): void {
+    this.email = email;
+    this.password = 'demo';
+    this.errorMessage.set('');
+  }
 
   async onLogin(): Promise<void> {
     if (!this.email || !this.password) return;

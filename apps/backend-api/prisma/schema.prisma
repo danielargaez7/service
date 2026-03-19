@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ enum CertificationType {
 
 model Employee {
   id              String          @id @default(cuid())
-  kimaiUserId     Int             @unique
+  kimaiUserId     Int?            @unique
   timetrexId      Int?            @unique
   firstName       String
   lastName        String
@@ -99,7 +99,7 @@ model Employee {
 
 model TimeEntry {
   id               String          @id @default(cuid())
-  kimaiTimesheetId Int             @unique
+  kimaiTimesheetId Int?            @unique
   employeeId       String
   employee         Employee        @relation(fields: [employeeId], references: [id])
   clockIn          DateTime
@@ -120,8 +120,11 @@ model TimeEntry {
   approvedBy       String?
   approvedAt       DateTime?
   status           TimesheetStatus @default(PENDING)
+  notes            String?
+  flagReason       String?
   deletedAt        DateTime?
   createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   @@index([employeeId])
   @@index([clockIn])

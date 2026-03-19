@@ -48,6 +48,8 @@ import {
   DriverJobType,
 } from '../../core/compliance-config.service';
 import { DriverAttachmentsService } from '../../core/driver-attachments.service';
+import { GeofenceDepartureService } from '../../core/geofence-departure.service';
+import { AuthService } from '../../core/auth.service';
 
 type TodayState = 'before' | 'during' | 'after';
 type FlowMode = 'preShift' | 'endShift';
@@ -153,11 +155,11 @@ const FACILITY_OPTIONS: FacilityOption[] = [
               @if (activeFlow() === 'preShift') {
                 @if (wizardStep() === 1) {
                   <div class="wizard-copy">
-                    <p>Good morning, Marcus Rivera</p>
-                    <p>CDL Class A Driver</p>
+                    <p>Good morning, {{ auth.currentUser()?.firstName ?? 'Driver' }} {{ auth.currentUser()?.lastName ?? '' }}</p>
+                    <p>{{ auth.currentUser()?.employeeClass?.replace('_', ' ') ?? 'Driver' }}</p>
                     <div class="wizard-summary">
-                      <span>Route: South Residential #R-447</span>
-                      <span>Vehicle: Truck #114 (CDL-A required)</span>
+                      <span>Route: Assigned Route</span>
+                      <span>Vehicle: Assigned Vehicle</span>
                       <span>Estimated start: 5:30 AM</span>
                     </div>
                   </div>
@@ -317,11 +319,11 @@ const FACILITY_OPTIONS: FacilityOption[] = [
           <ion-card class="sc-shift-card">
             <ion-card-header>
               <ion-card-subtitle>NEXT SHIFT</ion-card-subtitle>
-              <ion-card-title>South Residential Route</ion-card-title>
+              <ion-card-title>{{ selectedJobType().replace('_', ' ') || 'Active Shift' }}</ion-card-title>
             </ion-card-header>
             <ion-card-content>
               <div class="shift-detail-row"><ion-icon name="time-outline"></ion-icon><span>5:30 AM - 2:30 PM</span></div>
-              <div class="shift-detail-row"><ion-icon name="car-outline"></ion-icon><span>Truck #114 - CDL-A</span></div>
+              <div class="shift-detail-row"><ion-icon name="car-outline"></ion-icon><span>{{ auth.currentUser()?.employeeClass?.replace('_', ' ') ?? 'Vehicle' }}</span></div>
               <div class="shift-detail-row"><ion-icon name="map-outline"></ion-icon><span>42 stops · Est. 8.5 hours</span></div>
             </ion-card-content>
           </ion-card>
@@ -357,10 +359,27 @@ const FACILITY_OPTIONS: FacilityOption[] = [
         }
 
         @if (todayState() === 'during') {
+          @if (geofenceDeparture.departed()) {
+            <ion-card class="sc-departure-alert">
+              <ion-card-content>
+                <div class="departure-alert-row">
+                  <ion-icon name="warning-outline" color="warning"></ion-icon>
+                  <div class="departure-alert-copy">
+                    <strong>Looks like you left the site</strong>
+                    <span>Has the job been completed?</span>
+                  </div>
+                </div>
+                <div class="departure-alert-actions">
+                  <ion-button expand="block" color="success" (click)="confirmJobComplete()">Yes, mark complete</ion-button>
+                  <ion-button expand="block" fill="outline" color="medium" (click)="dismissDepartureAlert()">Still working</ion-button>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          }
           <ion-card class="sc-shift-card sc-shift-active">
             <ion-card-header>
               <ion-badge color="success">CLOCKED IN</ion-badge>
-              <ion-card-title>South Residential Route</ion-card-title>
+              <ion-card-title>{{ selectedJobType().replace('_', ' ') || 'Active Shift' }}</ion-card-title>
             </ion-card-header>
             <ion-card-content>
               <div class="shift-timer">
@@ -510,6 +529,28 @@ const FACILITY_OPTIONS: FacilityOption[] = [
     .timer-label { font-size: 0.75rem; color: var(--sc-text-secondary); }
     .timer-value { font-size: 1.8rem; font-weight: 800; }
     .sc-clock-out-area { display: flex; flex-direction: column; gap: 12px; margin: 12px 0 20px; }
+    .sc-departure-alert {
+      --background: #fff7ed;
+      border: 2px solid #f97316;
+      border-radius: 16px;
+      animation: pulseAlert 2s infinite;
+    }
+    @keyframes pulseAlert {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.3); }
+      50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
+    }
+    .departure-alert-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .departure-alert-row ion-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+    .departure-alert-copy { display: flex; flex-direction: column; gap: 2px; }
+    .departure-alert-copy strong { font-size: 1.05rem; color: #1e293b; }
+    .departure-alert-copy span { font-size: 0.9rem; color: #64748b; }
+    .departure-alert-actions { display: flex; flex-direction: column; gap: 8px; }
+
     .sc-clock-out-btn, .sc-break-btn { min-height: 56px; border-radius: 12px; border: none; font-weight: 700; }
     .sc-clock-out-btn { background: var(--sc-danger); color: white; }
     .sc-break-btn { background: #f3f4f6; color: #374151; }
@@ -679,7 +720,7 @@ export class TodayPage implements OnInit, OnDestroy {
   readonly hosHoursRemaining = signal(24);
   readonly notifications = signal<DriverNotification[]>([
     { title: 'Route update', body: 'Stop #12 moved due to traffic.', read: false, icon: 'map-outline', color: 'warning' },
-    { title: 'Truck assignment', body: 'Truck #114 passed pre-trip inspection.', read: false, icon: 'car-outline', color: 'success' },
+    { title: 'Truck assignment', body: 'Assigned vehicle passed pre-trip inspection.', read: false, icon: 'car-outline', color: 'success' },
     { title: 'Timesheet synced', body: 'Yesterday clock-out approved.', read: true, icon: 'cash-outline', color: 'primary' },
   ]);
   readonly selectedJobType = signal<DriverJobType>('RESIDENTIAL_ROUTE');
@@ -758,7 +799,9 @@ export class TodayPage implements OnInit, OnDestroy {
     private gpsService: GpsService,
     private offlineQueue: OfflineQueueService,
     private complianceConfig: ComplianceConfigService,
-    private attachments: DriverAttachmentsService
+    private attachments: DriverAttachmentsService,
+    public geofenceDeparture: GeofenceDepartureService,
+    public auth: AuthService
   ) {
     addIcons({
       timeOutline,
@@ -893,6 +936,9 @@ export class TodayPage implements OnInit, OnDestroy {
 
     const gps = await this.safeGetGps();
     this.queuePunch('IN', gps);
+
+    // Anchor geofence at the clock-in location for departure detection
+    await this.geofenceDeparture.anchor(gps.lat, gps.lng, this.selectedJobType());
   }
 
   async completeClockOut(): Promise<void> {
@@ -901,6 +947,9 @@ export class TodayPage implements OnInit, OnDestroy {
     if (this.shiftTimer) clearInterval(this.shiftTimer);
     this.showMoodSurvey.set(true);
     this.activeFlow.set(null);
+
+    // Stop geofence monitoring — driver is clocking out properly
+    await this.geofenceDeparture.stop();
 
     const gps = await this.safeGetGps();
     this.queuePunch('OUT', gps);
@@ -919,6 +968,37 @@ export class TodayPage implements OnInit, OnDestroy {
         ...items,
       ]);
     }
+  }
+
+  async confirmJobComplete(): Promise<void> {
+    // Driver confirmed the job is done — trigger clock-out flow
+    await this.geofenceDeparture.stop();
+    this.notifications.update((items) => [
+      {
+        title: 'Job marked complete',
+        body: 'You confirmed the job from the departure reminder. Don\'t forget to clock out when your shift ends.',
+        read: false,
+        icon: 'checkmark-circle',
+        color: 'success',
+      },
+      ...items,
+    ]);
+    this.beginEndShiftWizard();
+  }
+
+  dismissDepartureAlert(): void {
+    // Driver says they're still working — acknowledge and keep monitoring
+    this.geofenceDeparture.acknowledge();
+    this.notifications.update((items) => [
+      {
+        title: 'Still working',
+        body: 'Got it — we\'ll check again if you move further away.',
+        read: false,
+        icon: 'checkmark-circle',
+        color: 'primary',
+      },
+      ...items,
+    ]);
   }
 
   startBreak(): void {

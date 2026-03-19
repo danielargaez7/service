@@ -180,7 +180,7 @@ const ROUTE_STOPS: RouteStop[] = [
         </ion-card-content>
       </ion-card>
 
-      <ion-segment [value]="view()" (ionChange)="view.set($event.detail.value)">
+      <ion-segment [value]="view()" (ionChange)="view.set($any($event.detail.value))">
         <ion-segment-button value="all">All Stops</ion-segment-button>
         <ion-segment-button value="active">Need Action</ion-segment-button>
         <ion-segment-button value="done">Done</ion-segment-button>

@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import fs from 'fs/promises';
+import path from 'path';
 import {
-  TimeEntry,
   TimesheetStatus,
   JobType,
   ClockPunchDto,
@@ -11,6 +12,11 @@ import { requireRole } from '../middleware/rbac.middleware';
 import { KimaiService } from '../services/kimai.service';
 import { AnomalyService } from '../services/anomaly.service';
 import { NotificationService } from '../services/notification.service';
+import { timesheetService } from '../services/timesheet.service';
+import { OvertimeService } from '../services/overtime.service';
+import prisma from '../prisma';
+
+const overtimeService = new OvertimeService();
 
 export const timesheetsRouter = Router();
 const kimaiService = new KimaiService();
@@ -20,46 +26,8 @@ const KIMAI_INTEGRATION_ENABLED =
   process.env.KIMAI_INTEGRATION_ENABLED === 'true';
 
 // ---------------------------------------------------------------------------
-// Stub data
+// Helpers
 // ---------------------------------------------------------------------------
-const stubEntries: TimeEntry[] = [
-  {
-    id: 'ts-001',
-    employeeId: 'emp-001',
-    clockIn: new Date('2026-03-16T06:00:00Z'),
-    clockOut: new Date('2026-03-16T14:30:00Z'),
-    jobType: JobType.RESIDENTIAL_SANITATION,
-    gpsIn: { lat: 34.0522, lng: -118.2437, accuracy: 5 },
-    gpsOut: { lat: 34.0525, lng: -118.244, accuracy: 4 },
-    photoInUrl: null,
-    photoOutUrl: null,
-    status: TimesheetStatus.SUBMITTED,
-    approvedById: null,
-    approvedAt: null,
-    flagReason: null,
-    notes: 'Route 14 — residential pickup',
-    createdAt: new Date('2026-03-16T06:00:00Z'),
-    updatedAt: new Date('2026-03-16T14:30:00Z'),
-  },
-  {
-    id: 'ts-002',
-    employeeId: 'emp-002',
-    clockIn: new Date('2026-03-16T07:00:00Z'),
-    clockOut: null,
-    jobType: JobType.SEPTIC_PUMP,
-    gpsIn: { lat: 33.749, lng: -117.8677, accuracy: 8 },
-    gpsOut: null,
-    photoInUrl: null,
-    photoOutUrl: null,
-    status: TimesheetStatus.PENDING,
-    approvedById: null,
-    approvedAt: null,
-    flagReason: null,
-    notes: null,
-    createdAt: new Date('2026-03-16T07:00:00Z'),
-    updatedAt: new Date('2026-03-16T07:00:00Z'),
-  },
-];
 
 const timesheetQuerySchema = z.object({
   employeeId: z.string().optional(),
@@ -109,6 +77,15 @@ const attachmentSchema = z.object({
     .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid timestamp'),
 });
 
+const rejectSchema = z.object({
+  reason: z.string().min(3),
+});
+
+const bulkApproveSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+});
+
+// In-memory attachment store (MVP — real file storage later)
 const stubAttachments: Array<{
   id: string;
   employeeId: string;
@@ -119,10 +96,6 @@ const stubAttachments: Array<{
   uploadedAt: string;
   documentUrl: string;
 }> = [];
-
-const rejectSchema = z.object({
-  reason: z.string().min(3),
-});
 
 function apiError(
   res: Response,
@@ -154,78 +127,71 @@ timesheetsRouter.get(
     Role.SYSTEM_ADMIN
   ),
   async (req: Request, res: Response) => {
-  const parsed = timesheetQuerySchema.safeParse(req.query);
-  if (!parsed.success) {
-    apiError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      'Invalid timesheet query parameters',
-      parsed.error.flatten()
-    );
-    return;
-  }
-
-  const query = parsed.data;
-  const scopedEmployeeId =
-    req.user?.role === Role.DRIVER ? req.user.sub : query.employeeId;
-
-  if (KIMAI_INTEGRATION_ENABLED) {
-    try {
-      const data = await kimaiService.listTimesheets({
-        ...(scopedEmployeeId ? { user: scopedEmployeeId } : {}),
-        ...(query.startDate ? { begin: query.startDate } : {}),
-        ...(query.endDate ? { end: query.endDate } : {}),
-        page: query.page,
-        size: query.limit,
-      });
-
-      res.json({
-        data,
-        total: Array.isArray(data) ? data.length : 0,
-        page: query.page,
-        limit: query.limit,
-        source: 'kimai',
-      });
-      return;
-    } catch (error) {
+    const parsed = timesheetQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
       apiError(
         res,
-        502,
-        'KIMAI_UPSTREAM_ERROR',
-        'Failed to fetch timesheets from Kimai',
-        { message: (error as Error).message }
+        400,
+        'VALIDATION_ERROR',
+        'Invalid timesheet query parameters',
+        parsed.error.flatten()
       );
       return;
     }
-  }
 
-  let filtered = [...stubEntries];
+    const query = parsed.data;
+    const scopedEmployeeId =
+      req.user?.role === Role.DRIVER ? req.user.sub : query.employeeId;
 
-  if (scopedEmployeeId) {
-    filtered = filtered.filter((entry) => entry.employeeId === scopedEmployeeId);
-  }
-  if (query.status) {
-    filtered = filtered.filter((entry) => entry.status === query.status);
-  }
-  if (query.startDate) {
-    const sd = new Date(query.startDate);
-    filtered = filtered.filter((entry) => entry.clockIn >= sd);
-  }
-  if (query.endDate) {
-    const ed = new Date(query.endDate);
-    filtered = filtered.filter((entry) => entry.clockIn <= ed);
-  }
+    // Kimai passthrough if enabled
+    if (KIMAI_INTEGRATION_ENABLED) {
+      try {
+        const data = await kimaiService.listTimesheets({
+          ...(scopedEmployeeId ? { user: scopedEmployeeId } : {}),
+          ...(query.startDate ? { begin: query.startDate } : {}),
+          ...(query.endDate ? { end: query.endDate } : {}),
+          page: query.page,
+          size: query.limit,
+        });
 
-  const start = (query.page - 1) * query.limit;
+        res.json({
+          data,
+          total: Array.isArray(data) ? data.length : 0,
+          page: query.page,
+          limit: query.limit,
+          source: 'kimai',
+        });
+        return;
+      } catch (error) {
+        apiError(
+          res,
+          502,
+          'KIMAI_UPSTREAM_ERROR',
+          'Failed to fetch timesheets from Kimai',
+          { message: (error as Error).message }
+        );
+        return;
+      }
+    }
 
-  res.json({
-    data: filtered.slice(start, start + query.limit),
-    total: filtered.length,
-    page: query.page,
-    limit: query.limit,
-    source: 'stub',
-  });
+    // Database query
+    const result = await timesheetService.findByFilters({
+      employeeId: scopedEmployeeId,
+      status: query.status as any,
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    res.json({
+      data: result.data,
+      total: result.meta.total,
+      page: result.meta.page,
+      limit: result.meta.limit,
+      totalPages: result.meta.totalPages,
+      source: 'database',
+    });
   }
 );
 
@@ -241,9 +207,26 @@ timesheetsRouter.get(
     Role.PAYROLL_ADMIN,
     Role.SYSTEM_ADMIN
   ),
-  (_req: Request, res: Response) => {
-  const active = stubEntries.filter((e) => e.clockOut === null);
-  res.json({ data: active, count: active.length });
+  async (_req: Request, res: Response) => {
+    const active = await timesheetService.findActive();
+    res.json({ data: active, count: active.length });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// GET /exceptions — flagged entries summary for manager review
+// ---------------------------------------------------------------------------
+timesheetsRouter.get(
+  '/exceptions',
+  requireRole(
+    Role.ROUTE_MANAGER,
+    Role.HR_ADMIN,
+    Role.PAYROLL_ADMIN,
+    Role.SYSTEM_ADMIN
+  ),
+  async (_req: Request, res: Response) => {
+    const exceptions = await timesheetService.getExceptions();
+    res.json(exceptions);
   }
 );
 
@@ -261,80 +244,194 @@ timesheetsRouter.post(
     Role.SYSTEM_ADMIN
   ),
   async (req: Request, res: Response) => {
-  const parsed = punchSchema.safeParse(req.body);
-  if (!parsed.success) {
-    apiError(
-      res,
-      400,
-      'VALIDATION_ERROR',
-      'Invalid clock punch payload',
-      parsed.error.flatten()
-    );
-    return;
-  }
-
-  if (!req.user?.sub) {
-    apiError(res, 401, 'AUTH_REQUIRED', 'User context is missing');
-    return;
-  }
-
-  const punch = parsed.data as ClockPunchDto;
-  const anomaly = await anomalyService.scorePunch({
-    ...punch,
-    employeeId: req.user.sub,
-  });
-
-  if (KIMAI_INTEGRATION_ENABLED) {
-    try {
-      const created = await kimaiService.createTimesheet({
-        begin: punch.timestamp,
-        end: punch.type === 'OUT' ? punch.timestamp : undefined,
-        user: req.user.sub,
-        description: 'ServiceCore punch sync',
-        tags: [punch.jobType ?? JobType.RESIDENTIAL_SANITATION],
-      });
-
-      res.status(201).json({ data: created, source: 'kimai' });
-      return;
-    } catch (error) {
+    const parsed = punchSchema.safeParse(req.body);
+    if (!parsed.success) {
       apiError(
         res,
-        502,
-        'KIMAI_UPSTREAM_ERROR',
-        'Failed to create punch in Kimai',
-        { message: (error as Error).message }
+        400,
+        'VALIDATION_ERROR',
+        'Invalid clock punch payload',
+        parsed.error.flatten()
       );
       return;
     }
-  }
 
-  const newEntry: TimeEntry = {
-    id: `ts-${Date.now()}`,
-    employeeId: req.user.sub,
-    clockIn: new Date(punch.timestamp),
-    clockOut: punch.type === 'OUT' ? new Date(punch.timestamp) : null,
-    jobType: punch.jobType ?? JobType.RESIDENTIAL_SANITATION,
-    gpsIn: punch.gps,
-    gpsOut: punch.type === 'OUT' ? punch.gps : null,
-    photoInUrl: punch.photoBase64 ? 'stub://photo-uploaded' : null,
-    photoOutUrl: null,
-    status: TimesheetStatus.PENDING,
-    approvedById: null,
-    approvedAt: null,
-    flagReason: null,
-    notes:
-      anomaly.flags.length > 0
-        ? `anomaly:${anomaly.flags.join(',')}`
-        : null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+    if (!req.user?.sub) {
+      apiError(res, 401, 'AUTH_REQUIRED', 'User context is missing');
+      return;
+    }
 
-  res.status(201).json({
-    data: newEntry,
-    anomaly,
-    source: 'stub',
-  });
+    const punch = parsed.data as ClockPunchDto;
+    const anomaly = await anomalyService.scorePunch({
+      ...punch,
+      employeeId: req.user.sub,
+    });
+
+    // Kimai passthrough if enabled
+    if (KIMAI_INTEGRATION_ENABLED) {
+      try {
+        const created = await kimaiService.createTimesheet({
+          begin: punch.timestamp,
+          end: punch.type === 'OUT' ? punch.timestamp : undefined,
+          user: req.user.sub,
+          description: 'ServiceCore punch sync',
+          tags: [punch.jobType ?? JobType.RESIDENTIAL_SANITATION],
+        });
+
+        res.status(201).json({ data: created, source: 'kimai' });
+        return;
+      } catch (error) {
+        apiError(
+          res,
+          502,
+          'KIMAI_UPSTREAM_ERROR',
+          'Failed to create punch in Kimai',
+          { message: (error as Error).message }
+        );
+        return;
+      }
+    }
+
+    // Database: clock in creates new entry, clock out completes existing
+    if (punch.type === 'IN') {
+      const entry = await prisma.timeEntry.create({
+        data: {
+          employeeId: req.user.sub,
+          clockIn: new Date(punch.timestamp),
+          jobType: (punch.jobType ?? JobType.RESIDENTIAL_SANITATION) as any,
+          gpsClockIn: punch.gps as any,
+          photoUrl: punch.photoBase64 ? 'pending://upload' : null,
+          anomalyScore: anomaly.score,
+          anomalyFlags: anomaly.flags,
+          status: anomaly.score >= 0.6 ? 'FLAGGED' : 'PENDING',
+          notes: anomaly.flags.length > 0 ? `anomaly:${anomaly.flags.join(',')}` : null,
+        },
+        include: { employee: true },
+      });
+
+      res.status(201).json({ data: entry, anomaly, source: 'database' });
+    } else {
+      // Clock OUT — find the most recent open entry for this employee
+      const openEntry = await prisma.timeEntry.findFirst({
+        where: {
+          employeeId: req.user.sub,
+          clockOut: null,
+          deletedAt: null,
+        },
+        orderBy: { clockIn: 'desc' },
+      });
+
+      if (!openEntry) {
+        apiError(res, 404, 'NO_OPEN_ENTRY', 'No open clock-in found to close');
+        return;
+      }
+
+      const clockOut = new Date(punch.timestamp);
+      const hoursWorked = Math.max(
+        0,
+        (clockOut.getTime() - openEntry.clockIn.getTime()) / (1000 * 60 * 60)
+      );
+
+      // Use real overtime engine for accurate calculation
+      const employee = await prisma.employee.findUnique({
+        where: { id: req.user.sub },
+        include: { payRates: true },
+      });
+
+      let regularHours = Math.min(hoursWorked, 8);
+      let overtimeHours = Math.max(0, hoursWorked - 8);
+      let doubleTimeHours = 0;
+
+      if (employee && employee.payRates.length > 0) {
+        // Get this week's entries for proper weekly OT calculation
+        const weekStart = new Date(clockOut);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+
+        const weekEntries = await prisma.timeEntry.findMany({
+          where: {
+            employeeId: req.user.sub,
+            clockIn: { gte: weekStart },
+            deletedAt: null,
+            id: { not: openEntry.id },
+          },
+        });
+
+        // Build the entry list including the one being closed
+        const allEntries = [
+          ...weekEntries.map((e) => ({
+            id: e.id, employeeId: e.employeeId,
+            clockIn: e.clockIn, clockOut: e.clockOut,
+            jobType: e.jobType as any,
+            gpsIn: null, gpsOut: null, photoInUrl: null, photoOutUrl: null,
+            status: e.status as any, approvedById: e.approvedBy,
+            approvedAt: e.approvedAt, flagReason: e.flagReason,
+            notes: e.notes, createdAt: e.createdAt, updatedAt: e.updatedAt,
+          })),
+          {
+            id: openEntry.id, employeeId: openEntry.employeeId,
+            clockIn: openEntry.clockIn, clockOut: clockOut,
+            jobType: openEntry.jobType as any,
+            gpsIn: null, gpsOut: null, photoInUrl: null, photoOutUrl: null,
+            status: 'SUBMITTED' as any, approvedById: null,
+            approvedAt: null, flagReason: null,
+            notes: null, createdAt: openEntry.createdAt, updatedAt: new Date(),
+          },
+        ];
+
+        const otResult = overtimeService.calculateForEntries(
+          req.user.sub,
+          allEntries,
+          employee.payRates.map((pr) => ({
+            id: pr.id, employeeId: pr.employeeId,
+            jobType: pr.jobType as any,
+            ratePerHour: Number(pr.ratePerHour),
+            effectiveFrom: pr.effectiveFrom,
+            effectiveTo: pr.effectiveTo,
+          })),
+          {
+            employeeClass: employee.employeeClass as any,
+            stateCode: employee.stateCode,
+            cbAgreementId: employee.cbAgreementId ?? undefined,
+            isMotorCarrierExempt: employee.isMotorCarrier,
+          }
+        );
+
+        // Attribute this entry's portion of weekly OT
+        const priorHours = weekEntries.reduce((sum, e) => {
+          if (!e.clockOut) return sum;
+          return sum + (e.clockOut.getTime() - e.clockIn.getTime()) / (1000 * 60 * 60);
+        }, 0);
+        const totalWeeklyHours = priorHours + hoursWorked;
+
+        if (totalWeeklyHours > 40) {
+          const priorOT = Math.max(0, priorHours - 40);
+          const totalOT = Math.max(0, totalWeeklyHours - 40);
+          overtimeHours = totalOT - priorOT;
+          regularHours = hoursWorked - overtimeHours;
+        }
+
+        doubleTimeHours = otResult.doubleTimeHours > 0
+          ? Math.max(0, hoursWorked - regularHours - overtimeHours)
+          : 0;
+      }
+
+      const entry = await prisma.timeEntry.update({
+        where: { id: openEntry.id },
+        data: {
+          clockOut,
+          gpsClockOut: punch.gps as any,
+          hoursWorked,
+          regularHours,
+          overtimeHours,
+          doubleTimeHours,
+          status: 'SUBMITTED',
+        },
+        include: { employee: true },
+      });
+
+      res.status(200).json({ data: entry, anomaly, source: 'database' });
+    }
   }
 );
 
@@ -370,23 +467,53 @@ timesheetsRouter.post(
     }
 
     const attachment = parsed.data;
+    const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    // Write base64 image to disk
+    const uploadDir = path.join(process.cwd(), 'uploads', attachment.shiftId);
+    await fs.mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, `${id}-${attachment.filename}`);
+    const buffer = Buffer.from(attachment.imageBase64, 'base64');
+    await fs.writeFile(filePath, buffer);
+
     const record = {
-      id: `att-${Date.now()}`,
+      id,
       employeeId: req.user.sub,
       shiftId: attachment.shiftId,
       category: attachment.category,
       filename: attachment.filename,
       note: attachment.note,
       uploadedAt: attachment.timestamp,
-      documentUrl: `stub://shift-file/${attachment.shiftId}/${attachment.filename}`,
+      documentUrl: `/uploads/${attachment.shiftId}/${id}-${attachment.filename}`,
+      sizeBytes: buffer.length,
     };
-
-    stubAttachments.unshift(record);
 
     res.status(201).json({
       data: record,
-      source: 'stub',
+      source: 'filesystem',
     });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /bulk-approve — approve multiple timesheets at once
+// ---------------------------------------------------------------------------
+timesheetsRouter.post(
+  '/bulk-approve',
+  requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.PAYROLL_ADMIN, Role.SYSTEM_ADMIN),
+  async (req: Request, res: Response) => {
+    const parsed = bulkApproveSchema.safeParse(req.body);
+    if (!parsed.success) {
+      apiError(res, 400, 'VALIDATION_ERROR', 'Invalid bulk approve payload', parsed.error.flatten());
+      return;
+    }
+
+    const result = await timesheetService.bulkApprove(
+      parsed.data.ids,
+      req.user?.sub ?? 'unknown'
+    );
+
+    res.json(result);
   }
 );
 
@@ -397,22 +524,31 @@ timesheetsRouter.patch(
   '/:id/approve',
   requireRole(Role.ROUTE_MANAGER, Role.HR_ADMIN, Role.PAYROLL_ADMIN, Role.SYSTEM_ADMIN),
   async (req: Request, res: Response) => {
-  const { id } = req.params;
+    const { id } = req.params;
+    const approvedBy = req.user?.sub ?? 'unknown';
 
-  const notify = await notificationService.sendEmail(
-    'driver@servicecore.com',
-    `Timesheet ${id} approved`,
-    `Timesheet ${id} was approved by ${req.user?.sub ?? 'manager-001'}.`
-  );
+    try {
+      const entry = await timesheetService.approve(id, approvedBy);
 
-  res.json({
-    id,
-    status: TimesheetStatus.APPROVED,
-    approvedById: req.user?.sub ?? 'manager-001',
-    approvedAt: new Date(),
-    notification: notify,
-    message: `Timesheet ${id} approved`,
-  });
+      // Best-effort notification
+      if (entry.employeeId) {
+        const employee = await prisma.employee.findUnique({ where: { id: entry.employeeId } });
+        if (employee?.email) {
+          await notificationService.sendEmail(
+            employee.email,
+            `Timesheet ${id} approved`,
+            `Your timesheet for ${entry.clockIn.toLocaleDateString()} was approved.`
+          );
+        }
+      }
+
+      res.json({
+        data: entry,
+        message: `Timesheet ${id} approved`,
+      });
+    } catch (err) {
+      apiError(res, 404, 'NOT_FOUND', `Timesheet ${id} not found`);
+    }
   }
 );
 
@@ -437,18 +573,29 @@ timesheetsRouter.patch(
     }
 
     const { reason } = parsed.data;
-    const notify = await notificationService.sendEmail(
-      'driver@servicecore.com',
-      `Timesheet ${id} rejected`,
-      `Timesheet ${id} was rejected for reason: ${reason}`
-    );
+    const rejectedBy = req.user?.sub ?? 'unknown';
 
-    res.json({
-      id,
-      status: TimesheetStatus.REJECTED,
-      flagReason: reason,
-      notification: notify,
-      message: `Timesheet ${id} rejected`,
-    });
+    try {
+      const entry = await timesheetService.reject(id, reason, rejectedBy);
+
+      // Best-effort notification
+      if (entry.employeeId) {
+        const employee = await prisma.employee.findUnique({ where: { id: entry.employeeId } });
+        if (employee?.email) {
+          await notificationService.sendEmail(
+            employee.email,
+            `Timesheet ${id} rejected`,
+            `Your timesheet was rejected for reason: ${reason}`
+          );
+        }
+      }
+
+      res.json({
+        data: entry,
+        message: `Timesheet ${id} rejected`,
+      });
+    } catch (err) {
+      apiError(res, 404, 'NOT_FOUND', `Timesheet ${id} not found`);
+    }
   }
 );

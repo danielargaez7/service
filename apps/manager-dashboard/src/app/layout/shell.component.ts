@@ -50,7 +50,6 @@ interface NavSection {
                   <i [class]="'pi ' + section.icon"></i>
                   <span *ngIf="!sidebarCollapsed()">{{ section.label }}</span>
                 </div>
-                <i *ngIf="!sidebarCollapsed()" class="pi pi-angle-down"></i>
               </div>
 
               <div class="nav-section-items" *ngIf="!sidebarCollapsed(); else compactSection">
@@ -853,49 +852,28 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   navSections: NavSection[] = [
     {
-      label: 'Employees',
+      label: 'Workforce',
       icon: 'pi-users',
       items: [
-        { label: 'Roster', icon: 'pi-users', route: 'dashboard' },
-        { label: 'Schedules', icon: 'pi-calendar', route: 'schedule' },
-        { label: 'Compliance', icon: 'pi-shield', route: 'compliance', badge: '3' },
+        { label: 'Employees', icon: 'pi-users', route: 'employees' },
+        { label: 'Timesheets', icon: 'pi-check-circle', route: 'timesheets' },
+        { label: 'Schedule', icon: 'pi-calendar', route: 'schedule' },
+        { label: 'Compliance', icon: 'pi-shield', route: 'compliance' },
       ],
     },
     {
-      label: 'Timesheets',
-      icon: 'pi-clock',
-      items: [
-        { label: 'Approvals', icon: 'pi-check-circle', route: 'timesheets', badge: '12' },
-        { label: 'Time Clock', icon: 'pi-stopwatch', route: 'timesheets' },
-        { label: 'Audit Log', icon: 'pi-history', route: 'timesheets' },
-      ],
-    },
-    {
-      label: 'Payroll',
+      label: 'Finance',
       icon: 'pi-dollar',
       items: [
-        { label: 'Run Payroll', icon: 'pi-play', route: 'payroll' },
-        { label: 'What-If', icon: 'pi-sliders-h', route: 'payroll' },
-        { label: 'Reports', icon: 'pi-file', route: 'analytics' },
-        { label: 'Exports', icon: 'pi-upload', route: 'payroll' },
+        { label: 'Payroll', icon: 'pi-dollar', route: 'payroll' },
+        { label: 'Analytics', icon: 'pi-chart-line', route: 'analytics' },
       ],
     },
     {
-      label: 'Analytics',
-      icon: 'pi-chart-bar',
+      label: 'Tools',
+      icon: 'pi-wrench',
       items: [
-        { label: 'Overview', icon: 'pi-chart-line', route: 'analytics' },
-        { label: 'Labor Cost', icon: 'pi-chart-bar', route: 'analytics' },
-        { label: 'NLQ', icon: 'pi-comments', route: 'nlq' },
-      ],
-    },
-    {
-      label: 'Compliance',
-      icon: 'pi-shield',
-      items: [
-        { label: 'Risk Board', icon: 'pi-exclamation-triangle', route: 'compliance' },
-        { label: 'CDL / DOT', icon: 'pi-id-card', route: 'compliance' },
-        { label: 'HOS Status', icon: 'pi-clock', route: 'compliance' },
+        { label: 'NLQ Assistant', icon: 'pi-comments', route: 'nlq' },
       ],
     },
   ];

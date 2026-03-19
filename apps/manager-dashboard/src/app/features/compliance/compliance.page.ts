@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -209,34 +210,46 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
 
       <!-- Summary Cards -->
       <div class="summary-cards">
-        <div class="summary-card total">
+        <button type="button" class="summary-card total" [class.active]="!severityFilter()" (click)="severityFilter.set(null)">
           <div class="card-icon"><i class="pi pi-shield"></i></div>
           <div class="card-body">
             <span class="card-value">{{ totalRisks() }}</span>
             <span class="card-label">Total Risks</span>
           </div>
-        </div>
-        <div class="summary-card high">
+          <div class="card-hover-detail">
+            All open compliance risks across CDL, DOT, and HOS categories
+          </div>
+        </button>
+        <button type="button" class="summary-card high" [class.active]="severityFilter() === 'HIGH'" (click)="severityFilter.set(severityFilter() === 'HIGH' ? null : 'HIGH')">
           <div class="card-icon"><i class="pi pi-exclamation-triangle"></i></div>
           <div class="card-body">
             <span class="card-value">{{ highCount() }}</span>
             <span class="card-label">High Severity</span>
           </div>
-        </div>
-        <div class="summary-card medium">
+          <div class="card-hover-detail">
+            Expired CDLs, exceeded HOS limits, drivers that must be pulled off route immediately
+          </div>
+        </button>
+        <button type="button" class="summary-card medium" [class.active]="severityFilter() === 'MEDIUM'" (click)="severityFilter.set(severityFilter() === 'MEDIUM' ? null : 'MEDIUM')">
           <div class="card-icon"><i class="pi pi-exclamation-circle"></i></div>
           <div class="card-body">
             <span class="card-value">{{ mediumCount() }}</span>
             <span class="card-label">Medium Severity</span>
           </div>
-        </div>
-        <div class="summary-card low">
+          <div class="card-hover-detail">
+            Expiring certifications and approaching HOS limits — action needed within 30 days
+          </div>
+        </button>
+        <button type="button" class="summary-card low" [class.active]="severityFilter() === 'LOW'" (click)="severityFilter.set(severityFilter() === 'LOW' ? null : 'LOW')">
           <div class="card-icon"><i class="pi pi-info-circle"></i></div>
           <div class="card-body">
             <span class="card-value">{{ lowCount() }}</span>
             <span class="card-label">Low Severity</span>
           </div>
-        </div>
+          <div class="card-hover-detail">
+            Upcoming renewals with plenty of lead time — no immediate action required
+          </div>
+        </button>
       </div>
 
       <app-report-filter-bar
@@ -478,41 +491,72 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
     .summary-card {
       display: flex;
       align-items: center;
-      gap: var(--sc-space-4);
-      padding: var(--sc-space-5);
-      border-radius: var(--sc-radius-lg);
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--sc-radius-md);
       background: var(--sc-card-bg);
       border: 1px solid var(--sc-border);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      font-family: inherit;
+      text-align: left;
+      width: 100%;
     }
     .summary-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .summary-card.active {
+      outline: 2px solid var(--sc-orange);
+      outline-offset: -1px;
+    }
+    .card-hover-detail {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      padding: 10px 12px;
+      background: var(--sc-sidebar-bg, #1a1f36);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.75rem;
+      line-height: 1.4;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .summary-card:hover .card-hover-detail {
+      opacity: 1;
+      visibility: visible;
     }
     .card-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.25rem;
+      font-size: 0.9rem;
       flex-shrink: 0;
     }
     .card-body {
       display: flex;
-      flex-direction: column;
+      align-items: baseline;
+      gap: 6px;
     }
     .card-value {
-      font-size: 1.75rem;
+      font-size: 1.25rem;
       font-weight: 700;
       line-height: 1;
       color: var(--sc-text-primary);
     }
     .card-label {
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       color: var(--sc-text-secondary);
-      margin-top: 4px;
     }
 
     .summary-card.total .card-icon { background: var(--sc-info-1); color: var(--sc-info-3); }
@@ -837,6 +881,8 @@ export class CompliancePage {
       .slice(0, 3)
   );
 
+  private readonly router = inject(Router);
+
   constructor(private readonly alerts: ManagerAlertsService) {}
 
   severityToOrder(severity: RiskSeverity): number {
@@ -907,11 +953,7 @@ export class CompliancePage {
   }
 
   viewEmployee(risk: ComplianceRisk): void {
-    this.alerts.low(
-      'Employee detail view coming next',
-      `${risk.employeeName} (${risk.employeeId}) was selected from the compliance board.`,
-      '/compliance'
-    );
+    void this.router.navigateByUrl(`/employees`);
   }
 
   exportManifestCsv(): void {
@@ -955,8 +997,8 @@ export class CompliancePage {
 
   viewManifest(record: ManifestRecord): void {
     this.alerts.low(
-      'Manifest detail view coming next',
-      `Opened manifest record for ${record.employeeName} — ${record.routeLabel}.`,
+      'Manifest record',
+      `${record.employeeName} — ${record.routeLabel} — ${record.wasteVolume}. ${record.summary}`,
       '/compliance'
     );
   }

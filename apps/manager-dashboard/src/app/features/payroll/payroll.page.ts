@@ -1,6 +1,7 @@
-import { Component, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { CardModule } from 'primeng/card';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -10,6 +11,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { MessageModule } from 'primeng/message';
 import { ManagerAlertsService } from '../../core/manager-alerts.service';
+import { environment } from '../../../environments/environment';
 
 interface FlaggedItem {
   id: number;
@@ -85,13 +87,22 @@ interface WhatIfScenario {
           <div class="flagged-section">
             <div class="flagged-header">
               <h4><i class="pi pi-exclamation-triangle"></i> Flagged Items ({{ unresolvedCount() }})</h4>
-              <button
-                pButton
-                label="Export to QuickBooks"
-                icon="pi pi-upload"
-                class="p-button-outlined p-button-success"
-                (click)="exportToQuickBooks()"
-              ></button>
+              <div class="export-actions">
+                <p-select
+                  [options]="exportFormatOptions"
+                  [(ngModel)]="selectedExportFormat"
+                  optionLabel="label"
+                  optionValue="value"
+                  styleClass="export-format-dropdown"
+                />
+                <button
+                  pButton
+                  [label]="'Export to ' + selectedExportFormat"
+                  icon="pi pi-upload"
+                  class="p-button-outlined p-button-success"
+                  (click)="exportToQuickBooks()"
+                ></button>
+              </div>
             </div>
             <p-table [value]="flaggedItems()" [tableStyle]="{ 'min-width': '50rem' }" styleClass="p-datatable-sm p-datatable-striped">
               <ng-template pTemplate="header">
@@ -377,6 +388,12 @@ interface WhatIfScenario {
       color: var(--sc-warning-3);
     }
 
+    .export-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .resolved-row {
       opacity: 0.5;
     }
@@ -517,12 +534,25 @@ interface WhatIfScenario {
   `],
 })
 export class PayrollPage {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
+
   // ── Pay period options ──
   payPeriodOptions = [
     { label: 'Current Period (Mar 1-15, 2026)', value: 'current' },
     { label: 'Previous Period (Feb 16-28, 2026)', value: 'previous' },
   ];
   selectedPayPeriod = 'current';
+
+  // ── Export format ──
+  exportFormatOptions = [
+    { label: 'ADP', value: 'ADP' },
+    { label: 'Gusto', value: 'GUSTO' },
+    { label: 'QuickBooks', value: 'QUICKBOOKS' },
+    { label: 'CSV', value: 'CSV' },
+    { label: 'JSON', value: 'JSON' },
+  ];
+  selectedExportFormat = 'QUICKBOOKS';
 
   // ── Audit state ──
   auditLoading = signal(false);
@@ -571,51 +601,67 @@ export class PayrollPage {
     this.recalculate();
   }
 
+  private getPeriodDates(): { start: string; end: string } {
+    if (this.selectedPayPeriod === 'previous') {
+      return { start: '2026-02-16', end: '2026-02-28' };
+    }
+    return { start: '2026-03-01', end: '2026-03-15' };
+  }
+
   runAudit(): void {
     this.auditLoading.set(true);
-    setTimeout(() => {
-      this.summaryCards.set([
-        { label: 'Total Employees', value: '20', color: '#4f8cff' },
-        { label: 'Total Hours', value: '1,800', color: '#6366f1' },
-        { label: 'Regular Hours', value: '1,640', color: '#10b981' },
-        { label: 'OT Hours', value: '160', color: '#f59e0b' },
-        { label: 'Total Gross Pay', value: '$52,000', color: '#059669' },
-        { label: 'Flagged Items', value: '3', color: '#ef4444' },
-      ]);
+    const { start, end } = this.getPeriodDates();
 
-      this.flaggedItems.set([
-        {
-          id: 1,
-          employeeName: 'Marcus Rivera',
-          issue: 'Missing clock-out punch on 03/10 — shift shows 14.2 hours (likely forgot to clock out)',
-          severity: 'HIGH',
-          resolved: false,
-        },
-        {
-          id: 2,
-          employeeName: 'James Okafor',
-          issue: 'OT anomaly — 18.5 OT hours this period, 2.4x team average. Verify route assignment.',
-          severity: 'MEDIUM',
-          resolved: false,
-        },
-        {
-          id: 3,
-          employeeName: 'Sarah Chen',
-          issue: 'Route mismatch — clocked in at Westside depot but assigned to Northgate route on 03/12',
-          severity: 'LOW',
-          resolved: false,
-        },
-      ]);
+    this.http.get<any>(`${this.apiUrl}/api/payroll/preview`, {
+      params: { periodStart: start, periodEnd: end },
+    }).subscribe({
+      next: (res) => {
+        const totals = res.totals ?? { employees: 0, totalHours: 0, regularHours: 0, overtimeHours: 0, totalPay: 0, flaggedItems: 0 };
 
-      this.auditLoading.set(false);
-      this.auditRan.set(true);
+        this.baseRegularHours = Math.round(totals.regularHours);
+        this.baseOtHours = Math.round(totals.overtimeHours);
+        this.baseGrossPay = Math.round(totals.totalPay);
 
-      this.alerts.high(
-        'Audit complete',
-        'Pre-payroll audit finished. Three items are flagged for manager review.',
-        '/payroll'
-      );
-    }, 1500);
+        this.summaryCards.set([
+          { label: 'Total Employees', value: totals.employees.toString(), color: '#4f8cff' },
+          { label: 'Total Hours', value: Math.round(totals.totalHours).toLocaleString(), color: '#6366f1' },
+          { label: 'Regular Hours', value: Math.round(totals.regularHours).toLocaleString(), color: '#10b981' },
+          { label: 'OT Hours', value: Math.round(totals.overtimeHours).toLocaleString(), color: '#f59e0b' },
+          { label: 'Total Gross Pay', value: '$' + Math.round(totals.totalPay).toLocaleString(), color: '#059669' },
+          { label: 'Flagged Items', value: totals.flaggedItems.toString(), color: '#ef4444' },
+        ]);
+
+        // Build flagged items from preview data
+        const flagged: FlaggedItem[] = [];
+        let flagId = 1;
+        for (const row of (res.data ?? [])) {
+          for (const warning of (row.warnings ?? [])) {
+            flagged.push({
+              id: flagId++,
+              employeeName: row.employeeName,
+              issue: warning,
+              severity: warning.toLowerCase().includes('cap') || warning.toLowerCase().includes('violation') ? 'HIGH' : 'MEDIUM',
+              resolved: false,
+            });
+          }
+        }
+        this.flaggedItems.set(flagged);
+
+        this.auditLoading.set(false);
+        this.auditRan.set(true);
+        this.recalculate();
+
+        this.alerts.high(
+          'Audit complete',
+          `Pre-payroll audit finished. ${flagged.length} items flagged for review.`,
+          '/payroll'
+        );
+      },
+      error: () => {
+        this.auditLoading.set(false);
+        this.alerts.high('Audit failed', 'Could not connect to the payroll API.');
+      },
+    });
   }
 
   severityColor(severity: string): 'danger' | 'warn' | 'info' {
@@ -649,11 +695,40 @@ export class PayrollPage {
   }
 
   exportToQuickBooks(): void {
-    this.alerts.low(
-      'Export successful',
-      'Payroll data exported to QuickBooks. Twenty employee records were sent.',
-      '/payroll'
-    );
+    const { start, end } = this.getPeriodDates();
+
+    this.http.post(`${this.apiUrl}/api/payroll/export`, {
+      periodStart: start,
+      periodEnd: end,
+      format: this.selectedExportFormat,
+    }, { responseType: 'blob', observe: 'response' }).subscribe({
+      next: (response) => {
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filename = contentDisposition
+          ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
+          : `payroll-export.csv`;
+
+        // Trigger download
+        const blob = response.body;
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+
+        this.alerts.low(
+          'Export successful',
+          `Payroll data exported as ${this.selectedExportFormat}.`,
+          '/payroll'
+        );
+      },
+      error: () => {
+        this.alerts.high('Export failed', 'Could not export payroll data.');
+      },
+    });
   }
 
   onScenarioChange(): void {
