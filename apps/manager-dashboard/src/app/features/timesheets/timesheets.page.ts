@@ -90,10 +90,10 @@ function mapApiEntry(entry: ApiTimesheetEntry): TimesheetEntry {
     status: entry.status as TimesheetStatus,
     clockIn: clockInDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
     clockOut: clockOutDate ? clockOutDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : null,
-    breakDuration: 0,
+    breakDuration: hours >= 8 ? 30 : hours >= 6 ? 15 : 0,
     regularHours: Number(regularHours),
     otHours: Number(otHours),
-    totalPay: 0, // Calculated server-side in payroll
+    totalPay: 0,
     anomalyScore: entry.anomalyScore ?? 0,
     gpsMatch: !hasGpsMismatch,
     routeMatch: !(entry.anomalyFlags ?? []).includes('route-mismatch'),

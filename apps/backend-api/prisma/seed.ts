@@ -285,10 +285,13 @@ async function main() {
     if (dayOfWeek === 0 || dayOfWeek === 6) continue; // skip weekends
 
     for (const driver of drivers) {
-      const startHour = 6 + Math.floor(Math.random() * 2); // 6-7 AM
-      const hours = 7.5 + Math.random() * 3; // 7.5-10.5 hours
-      const jobTypes = ['RESIDENTIAL_SANITATION', 'ROLL_OFF_DELIVERY', 'SEPTIC_PUMP', 'GREASE_TRAP'];
-      const jobType = jobTypes[Math.floor(Math.random() * jobTypes.length)];
+      const startHour = 5 + Math.floor(Math.random() * 3); // 5-7 AM varied
+      const hours = 7 + Math.random() * 3.5; // 7-10.5 hours varied
+
+      // Each driver gets their primary job type based on their pay rates
+      const driverRates = employeeRates.find((er) => er.employee.id === driver.id);
+      const primaryJobType = driverRates?.rates[0]?.jobType ?? 'RESIDENTIAL_SANITATION';
+      const jobType = primaryJobType;
 
       entries.push({
         employeeId: driver.id,
