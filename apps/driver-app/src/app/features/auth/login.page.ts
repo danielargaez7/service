@@ -209,11 +209,11 @@ export class LoginPage {
   demoLogin(): void {
     // Skip API — go straight to the app for demo purposes
     const email = this.email().trim() || 'driver@servicecore.com';
-    const name = email.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+    const nameParts = email.split('@')[0].split('.');
     const demoUser = {
       id: 'demo-driver',
-      firstName: name.split(' ')[0] || 'Demo',
-      lastName: name.split(' ')[1] || 'Driver',
+      firstName: nameParts.map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))[0] || 'Demo',
+      lastName: nameParts.length > 1 ? nameParts.slice(1).map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') : 'Driver',
       email,
       role: 'DRIVER',
       employeeClass: 'CDL_A',
@@ -221,7 +221,9 @@ export class LoginPage {
     localStorage.setItem('sc_access_token', 'demo-token');
     localStorage.setItem('sc_refresh_token', 'demo-refresh');
     localStorage.setItem('sc_user', JSON.stringify(demoUser));
-    this.router.navigate(['/tabs']);
+    // Update the auth service signal so the guard sees it
+    this.authService.currentUser.set(demoUser);
+    this.router.navigate(['/tabs/today']);
   }
 
   async onLogin(): Promise<void> {
