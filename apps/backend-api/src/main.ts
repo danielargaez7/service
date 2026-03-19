@@ -76,19 +76,23 @@ app.use('/api/schedule', requireApiKeyIfConfigured, authenticate, scheduleRouter
 if (process.env.NODE_ENV === 'production') {
   const publicDir = path.join(process.cwd(), 'public');
 
-  // Manager Dashboard at /dashboard and root /
-  app.use('/dashboard', express.static(path.join(publicDir, 'dashboard')));
-  app.use('/driver', express.static(path.join(publicDir, 'driver')));
-
-  // Serve dashboard as default for root
+  // Static files first — must come before SPA fallbacks
+  app.use('/driver', express.static(path.join(publicDir, 'driver'), { index: false }));
+  app.use('/dashboard', express.static(path.join(publicDir, 'dashboard'), { index: false }));
   app.use(express.static(path.join(publicDir, 'dashboard')));
 
-  // SPA fallback — serve index.html for any non-API route
-  app.get(/^\/(?!api\/)(?!uploads\/)(?!driver\/).*/, (_req, res) => {
-    res.sendFile(path.join(publicDir, 'dashboard', 'index.html'));
-  });
-  app.get('/driver/*', (_req, res) => {
+  // SPA fallback — only for routes that don't look like files
+  app.get('/driver', (_req, res) => {
     res.sendFile(path.join(publicDir, 'driver', 'index.html'));
+  });
+  app.get('/driver/*', (req, res, next) => {
+    // If it looks like a file request (.js, .css, .ico, etc.), let it 404 naturally
+    if (req.path.match(/\.\w+$/)) { next(); return; }
+    res.sendFile(path.join(publicDir, 'driver', 'index.html'));
+  });
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.match(/\.\w+$/)) { next(); return; }
+    res.sendFile(path.join(publicDir, 'dashboard', 'index.html'));
   });
 }
 
