@@ -742,13 +742,13 @@ export class SchedulePage {
 
   private initScheduleRows(): DriverRow[] { return [
     {
-      id: 'emp-rivera', name: 'Rivera, Carlos', employeeClass: 'CDL-A', hosRemaining: 12, weeklyHours: 42.5,
+      id: 'emp-rivera', name: 'Rivera, Carlos', employeeClass: 'CDL-A', hosRemaining: 12, weeklyHours: 40,
       shifts: {
-        MON: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
-        TUE: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
-        WED: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
-        THU: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
-        FRI: this.shift('residential', 'South Res', '06:00', '14:30', 8.5),
+        MON: this.shift('residential', 'South Res', '06:00', '14:00', 8),
+        TUE: this.shift('residential', 'South Res', '06:00', '14:00', 8),
+        WED: this.shift('residential', 'South Res', '06:00', '14:00', 8),
+        THU: this.shift('residential', 'South Res', '06:00', '14:00', 8),
+        FRI: this.shift('residential', 'South Res', '06:00', '14:00', 8),
         SAT: null, SUN: null,
       },
     },
@@ -764,13 +764,13 @@ export class SchedulePage {
       },
     },
     {
-      id: 'emp-garcia', name: 'Garcia, Tom', employeeClass: 'CDL-A', hosRemaining: 8, weeklyHours: 42.5,
+      id: 'emp-garcia', name: 'Garcia, Tom', employeeClass: 'CDL-A', hosRemaining: 14, weeklyHours: 40,
       shifts: {
-        MON: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
-        TUE: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
-        WED: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
-        THU: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
-        FRI: this.shift('septic', 'Septic East', '06:00', '14:30', 8.5),
+        MON: this.shift('septic', 'Septic East', '06:00', '14:00', 8),
+        TUE: this.shift('septic', 'Septic East', '06:00', '14:00', 8),
+        WED: this.shift('septic', 'Septic East', '06:00', '14:00', 8),
+        THU: this.shift('septic', 'Septic East', '06:00', '14:00', 8),
+        FRI: this.shift('septic', 'Septic East', '06:00', '14:00', 8),
         SAT: null, SUN: null,
       },
     },
@@ -1237,7 +1237,7 @@ export class SchedulePage {
 
     this.published.set(true);
 
-    this.alerts.high(
+    this.alerts.low(
       'Schedule published',
       `${this.weekLabel()} schedule published: ${totalDrivers} employees, ${totalShifts} shifts, ${Math.round(totalHours)}h total, $${Math.round(cost).toLocaleString()} projected labor. Notifications sent to all assigned drivers.`,
       '/schedule'

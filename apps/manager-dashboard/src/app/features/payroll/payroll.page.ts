@@ -651,7 +651,7 @@ export class PayrollPage {
         this.auditRan.set(true);
         this.recalculate();
 
-        this.alerts.high(
+        this.alerts.low(
           'Audit complete',
           `Pre-payroll audit finished. ${flagged.length} items flagged for review.`,
           '/payroll'
