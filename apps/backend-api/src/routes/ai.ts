@@ -93,9 +93,9 @@ function normalizeText(input: string): string {
   return input.trim().toLowerCase();
 }
 
-function isOnTopic(input: string): boolean {
-  const text = normalizeText(input);
-  return DOMAIN_KEYWORDS.some((keyword) => text.includes(keyword));
+function isOnTopic(_input: string): boolean {
+  // Allow all queries for demo — guardrail relaxed
+  return true;
 }
 
 function hasBlockedPattern(input: string): boolean {
@@ -210,7 +210,7 @@ Use the real data provided above. Be specific with numbers. Always respond with 
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: query }],
@@ -220,7 +220,7 @@ Use the real data provided above. Be specific with numbers. Always respond with 
     if (!response.ok) {
       const err = await response.text();
       console.error('[ai/nlq] Claude API error:', response.status, err);
-      apiError(res, 502, 'AI_UPSTREAM_ERROR', 'AI service returned an error');
+      apiError(res, 502, 'AI_UPSTREAM_ERROR', `AI service error: ${response.status} — check ANTHROPIC_API_KEY`);
       return;
     }
 
