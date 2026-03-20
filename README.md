@@ -139,19 +139,39 @@ Current login accepts any email/password and grants full SYSTEM_ADMIN access (de
 
 ## Key Features
 
-- **Timesheet Approval Queue** — daily entries with approve/flag/edit workflow
-- **Pre-Payroll Audit** — confidence score, employee breakdown with expandable daily punches, one-click approve & export
-- **AI Chat Assistant** — floating widget powered by Claude with workforce guardrails and live DB context
-- **Driver Compliance** — CDL/DOT/HOS tracking with SMS alert notifications
+### Manager Dashboard
+- **Timesheet Approval Queue** — today's entries with approve/flag/edit, compact table, no horizontal scroll
+- **Pre-Payroll Audit** — payroll readiness confidence score, employee breakdown with expandable daily punches, cost comparison vs last period, one-click "Approve Clean & Export"
+- **Guided Issue Resolution** — click a confidence issue → auto-scrolls to the employee row with 2.5s amber pulse highlight
+- **AI Chat Assistant** — floating widget (bottom-right FAB) powered by Claude with workforce guardrails, live DB context, conversation memory
+- **Employee Roster** — clickable rows with hover effect, navigates to employee detail
+- **Driver Compliance** — CDL/DOT/HOS tracking, SMS alert notes on HOS cards, EPA submit confirmation overlay, 3-column risk board
+- **Weekly Schedule** — print/PDF export with landscape layout, clean print styles
 - **Fleet Map** — real-time driver positions across Denver metro
 - **Overtime Engine** — FLSA, state rules, Motor Carrier exemptions, CBA support
-- **What-If Simulator** — model labor cost scenarios before committing
+- **What-If Simulator** — model labor cost scenarios (holiday, hours, headcount, rate changes)
 - **Auto-seed** — fresh demo data generated on server startup daily
+- **Single Login** — pre-filled credentials, one-click access, full SYSTEM_ADMIN
+
+### Driver App
+- **Offline Banner** — amber notification when offline, reassures punches will sync
+- **Route Caching** — today's stops cached in localStorage for offline access
+- **Punch Queue** — clock in/out queued locally when offline, syncs when back online
+- **Pre-shift Wizard** — job type selection, pre-trip inspection, selfie capture
+- **GPS + Camera** — Capacitor native plugins for location and photo verification
+- **Gamification** — badges, points, tiers for driver engagement
+
+### Backend
+- **Helmet.js** — HTTP security headers (X-Frame-Options, HSTS, etc.)
+- **Pino Logging** — structured JSON in production, pretty-printed in dev
+- **AI Endpoints** — NLQ (natural language query), voice FastFill, HR chatbot with Claude
+- **Anomaly Detection** — Python IsolationForest microservice for outlier scoring
 
 ## CI/CD
 
 - **GitHub Actions** — lint, test, and build on every PR and push to main
 - **Railway** — production deployment at `service-production-931a.up.railway.app`
+- **Docker** — multi-stage build, entrypoint runs migrations + seed automatically
 
 ## Current Roadmap
 
@@ -163,6 +183,12 @@ Current login accepts any email/password and grants full SYSTEM_ADMIN access (de
 - [x] GitHub Actions CI pipeline
 - [x] floating AI chat widget with guardrails
 - [x] payroll confidence score + approve & export
+- [x] guided issue resolution (scroll + pulse)
+- [x] cost comparison sparklines
+- [x] driver app offline banner + route caching
+- [x] compliance HOS SMS alerts + EPA submit overlay
+- [x] print/PDF for weekly schedule
+- [x] clickable employee roster rows
 - [ ] replace remaining starter/scaffold docs in repo
 - [ ] broaden e2e coverage for manager + driver critical paths
 

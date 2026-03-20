@@ -432,7 +432,7 @@ const ROUTE_STOPS: RouteStop[] = [
 })
 export class RoutesPage {
   readonly view = signal<RouteView>('all');
-  readonly stops = signal<RouteStop[]>(ROUTE_STOPS);
+  readonly stops = signal<RouteStop[]>(this.loadInitialStops());
   readonly nextStop = computed(
     () =>
       this.stops().find((stop) => stop.status === 'NEXT' || stop.status === 'IN_PROGRESS') ??
@@ -459,6 +459,24 @@ export class RoutesPage {
       radioOutline,
       timeOutline,
     });
+
+    // Cache route data for offline access
+    localStorage.setItem('sc_cached_routes', JSON.stringify(this.stops()));
+  }
+
+  private loadInitialStops(): RouteStop[] {
+    const cached = localStorage.getItem('sc_cached_routes');
+    if (cached) {
+      try {
+        const cachedData = JSON.parse(cached) as RouteStop[];
+        if (Array.isArray(cachedData) && cachedData.length > 0) {
+          return cachedData;
+        }
+      } catch {
+        // Ignore parse errors, fall through to default
+      }
+    }
+    return ROUTE_STOPS;
   }
 
   badgeColor(status: StopStatus): string {

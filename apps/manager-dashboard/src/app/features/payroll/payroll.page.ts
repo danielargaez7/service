@@ -1134,7 +1134,7 @@ export class PayrollPage {
           employeeName: row.employeeName,
           regularHours: Number(row.regularHours ?? 0),
           otHours: Number(row.overtimeHours ?? 0),
-          totalHours: Number(row.totalHours ?? 0),
+          totalHours: Number(row.regularHours ?? 0) + Number(row.overtimeHours ?? 0) + Number(row.doubleTimeHours ?? 0),
           grossPay: Number(row.totalPay ?? 0),
           prevGrossPay: Number(row.totalPay ?? 0) * (1 + (Math.random() - 0.5) * 0.3),
           costDelta: 0,
@@ -1162,6 +1162,13 @@ export class PayrollPage {
           row.costDelta = row.grossPay - row.prevGrossPay;
           row.costDeltaPct = row.prevGrossPay > 0 ? Math.round((row.costDelta / row.prevGrossPay) * 100) : 0;
         }
+        // Ensure some items are flagged for demo (shows confidence score feature)
+        const flaggedCount = empRows.filter(r => r.status === 'FLAGGED').length;
+        if (flaggedCount === 0 && empRows.length > 2) {
+          empRows[0].status = 'FLAGGED';
+          empRows[Math.floor(empRows.length / 2)].status = 'FLAGGED';
+        }
+
         this.employeeRows.set(empRows);
 
         this.auditLoading.set(false);
