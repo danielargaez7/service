@@ -736,9 +736,8 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
     }
     .manifest-record {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: var(--sc-space-4);
+      flex-direction: column;
+      gap: 10px;
       border-radius: var(--sc-radius-md);
       padding: 12px 14px;
       border: 1px solid var(--sc-border);
@@ -769,7 +768,8 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      flex-shrink: 0;
+      border-top: 1px solid var(--sc-border);
+      padding-top: 10px;
     }
     .manifest-metrics {
       display: flex;

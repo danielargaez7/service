@@ -88,11 +88,11 @@ interface NavSection {
         </nav>
 
         <div class="sidebar-footer">
-          <a class="nav-item footer-link" href="#" title="Settings">
+          <a class="nav-item footer-link" routerLink="/settings" title="Settings">
             <i class="pi pi-cog"></i>
             <span class="nav-label" *ngIf="!sidebarCollapsed()">Settings</span>
           </a>
-          <a class="nav-item footer-link" href="#" title="Help">
+          <a class="nav-item footer-link" href="https://support.servicecore.com/hc/en-us" target="_blank" rel="noopener" title="Help & Support">
             <i class="pi pi-question-circle"></i>
             <span class="nav-label" *ngIf="!sidebarCollapsed()">Help</span>
           </a>

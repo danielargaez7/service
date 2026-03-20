@@ -78,6 +78,13 @@ export const appRoutes: Route[] = [
           ),
       },
       {
+        path: 'settings',
+        loadComponent: () =>
+          import('./features/settings/settings.page').then(
+            (m) => m.SettingsPage
+          ),
+      },
+      {
         path: 'nlq',
         loadComponent: () =>
           import('./features/nlq/nlq.page').then((m) => m.NlqPage),
