@@ -28,7 +28,7 @@ import { AuthService } from '../../core/auth.service';
     RouterLink,
   ],
   template: `
-    <ion-content class="ion-padding">
+    <ion-content class="ion-padding" style="--padding-top: 44px;">
       <ion-list>
         <ion-item lines="full">
           <ion-label>

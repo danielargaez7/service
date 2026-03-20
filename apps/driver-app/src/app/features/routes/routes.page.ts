@@ -129,7 +129,7 @@ const ROUTE_STOPS: RouteStop[] = [
         <div class="hero-copy">
           <p class="eyebrow">Dispatch Route</p>
           <h1>South Residential #R-447</h1>
-          <p>42 planned stops · 31 complete · 1 traffic delay · next stop needs manifest capture</p>
+          <p>14 planned stops · 9 complete · 1 traffic delay · next stop needs manifest capture</p>
         </div>
         <div class="hero-metrics">
           <div class="metric-pill">

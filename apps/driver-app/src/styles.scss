@@ -203,6 +203,20 @@
   }
 }
 
+/* ── Global toolbar styling (blue gradient header) ── */
+ion-toolbar {
+  --background: linear-gradient(135deg, #1e40af, #2563eb) !important;
+  --color: #fff !important;
+}
+
+ion-title {
+  color: #fff !important;
+}
+
+ion-back-button {
+  --color: #fff !important;
+}
+
 :root {
   --sc-orange: #ff4c00;
   --sc-orange-light: #ffdbcc;
