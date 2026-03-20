@@ -9,6 +9,182 @@
 @import '@ionic/angular/css/flex-utils.css';
 @import '@ionic/angular/css/display.css';
 
+/* ── Demo Phone Frame (desktop browsers only) ── */
+
+/* Hide demo elements by default (mobile sees nothing extra) */
+.demo-bg,
+.phone-notch {
+  display: none;
+}
+
+/* On wide screens, show the phone mockup */
+@media (min-width: 600px) {
+  body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #fff5eb 0%, #ffe8d6 30%, #fdba74 60%, #f97316 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Animated background orbs */
+  .demo-bg {
+    display: block;
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .demo-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+  }
+
+  .demo-orb-1 {
+    width: 400px;
+    height: 400px;
+    background: #f97316;
+    top: -10%;
+    left: -5%;
+    animation: orbFloat1 12s ease-in-out infinite;
+  }
+
+  .demo-orb-2 {
+    width: 300px;
+    height: 300px;
+    background: #fb923c;
+    bottom: -5%;
+    right: -5%;
+    animation: orbFloat2 15s ease-in-out infinite;
+  }
+
+  .demo-orb-3 {
+    width: 200px;
+    height: 200px;
+    background: #ffffff;
+    top: 40%;
+    left: 60%;
+    animation: orbFloat3 10s ease-in-out infinite;
+  }
+
+  @keyframes orbFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(60px, 40px) scale(1.1); }
+  }
+
+  @keyframes orbFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-50px, -30px) scale(1.15); }
+  }
+
+  @keyframes orbFloat3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(30px, -40px) scale(0.9); }
+  }
+
+  /* Brand label on the left */
+  .demo-brand {
+    display: flex;
+    position: fixed;
+    left: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: center;
+    gap: 16px;
+    z-index: 1;
+  }
+
+  .demo-logo {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+  }
+
+  .demo-brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .demo-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  .demo-subtitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    letter-spacing: 0.5px;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  /* Phone frame */
+  .phone-frame {
+    position: relative;
+    z-index: 2;
+    width: 390px;
+    height: 844px;
+    border-radius: 44px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 10px #1a1a1a,
+      0 0 0 12px #333,
+      0 20px 60px rgba(0, 0, 0, 0.3),
+      0 0 80px rgba(249, 115, 22, 0.15);
+    background: #fff;
+  }
+
+  /* Notch */
+  .phone-notch {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 150px;
+    height: 28px;
+    background: #1a1a1a;
+    border-radius: 0 0 18px 18px;
+    z-index: 9999;
+  }
+
+  .phone-frame app-root {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
+/* Hide brand on smaller desktop screens */
+@media (min-width: 600px) and (max-width: 1100px) {
+  .demo-brand {
+    display: none;
+  }
+}
+
 :root {
   --sc-orange: #ff4c00;
   --sc-orange-light: #ffdbcc;
