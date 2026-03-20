@@ -626,6 +626,44 @@ interface RiskBoardItem {
       display: flex;
       justify-content: space-between;
       gap: 8px;
+      position: relative;
+    }
+    .trend-bars::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(0,0,0,0.08) 50%, transparent 50%);
+      background-size: 8px 1px;
+      background-repeat: repeat-x;
+      background-position:
+        0 0%,
+        0 20%,
+        0 40%,
+        0 60%,
+        0 80%,
+        0 100%;
+      /* Multiple dashed lines */
+      background-image:
+        repeating-linear-gradient(to right, var(--sc-border, #e2e6ed) 0 4px, transparent 4px 8px),
+        repeating-linear-gradient(to right, var(--sc-border, #e2e6ed) 0 4px, transparent 4px 8px),
+        repeating-linear-gradient(to right, var(--sc-border, #e2e6ed) 0 4px, transparent 4px 8px),
+        repeating-linear-gradient(to right, var(--sc-border, #e2e6ed) 0 4px, transparent 4px 8px),
+        repeating-linear-gradient(to right, var(--sc-border, #e2e6ed) 0 4px, transparent 4px 8px),
+        repeating-linear-gradient(to right, var(--sc-border, #e2e6ed) 0 4px, transparent 4px 8px);
+      background-size: 100% 1px;
+      background-position:
+        0 0%,
+        0 20%,
+        0 40%,
+        0 60%,
+        0 80%,
+        0 100%;
+      background-repeat: repeat-x;
     }
     .trend-bar-group {
       flex: 1;
