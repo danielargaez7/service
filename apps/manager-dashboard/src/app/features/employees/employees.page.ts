@@ -120,12 +120,11 @@ interface HOSStatus {
             <th pSortableColumn="stateCode">State <p-sortIcon field="stateCode" /></th>
             <th>Motor Carrier</th>
             <th>CBA</th>
-            <th style="width: 8rem">Actions</th>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="body" let-emp>
-          <tr>
+          <tr class="clickable-row" (click)="viewEmployee(emp)">
             <td>
               <div class="name-cell">
                 <div class="avatar">{{ emp.firstName[0] }}{{ emp.lastName[0] }}</div>
@@ -146,20 +145,12 @@ interface HOSStatus {
               </span>
             </td>
             <td>{{ emp.cbAgreementId || '—' }}</td>
-            <td>
-              <div class="action-buttons">
-                <button pButton icon="pi pi-eye" class="p-button-sm p-button-rounded p-button-text"
-                  pTooltip="View Details" (click)="viewEmployee(emp)"></button>
-                <button pButton icon="pi pi-clock" class="p-button-sm p-button-rounded p-button-text p-button-info"
-                  pTooltip="HOS Status" (click)="viewHOS(emp)" [disabled]="!emp.isMotorCarrier"></button>
-              </div>
-            </td>
           </tr>
         </ng-template>
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="9" class="empty-msg">No employees match your search.</td>
+            <td colspan="8" class="empty-msg">No employees match your search.</td>
           </tr>
         </ng-template>
       </p-table>
@@ -323,6 +314,20 @@ interface HOSStatus {
     .bool-dot { font-size: 0.82rem; font-weight: 600; }
     .bool-dot.yes { color: var(--sc-success-4); }
     .bool-dot.no { color: var(--sc-text-secondary); }
+
+    :host ::ng-deep .p-datatable-tbody > tr.clickable-row {
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    :host ::ng-deep .p-datatable-tbody > tr.clickable-row:hover {
+      background: var(--sc-orange-1, #fff7ed) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    :host ::ng-deep .p-datatable-tbody > tr.clickable-row:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
 
     .action-buttons { display: flex; gap: 4px; opacity: 0.4; transition: opacity 0.15s ease; }
     :host ::ng-deep .p-datatable-tbody > tr:hover .action-buttons { opacity: 1; }

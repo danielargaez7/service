@@ -79,6 +79,7 @@ const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
         <div class="header-actions">
           <button pButton type="button" class="p-button-text" icon="pi pi-chevron-left" (click)="changeWeek(-1)"></button>
           <button pButton type="button" class="p-button-text" icon="pi pi-chevron-right" (click)="changeWeek(1)"></button>
+          <button pButton type="button" class="p-button-outlined" label="Print / PDF" icon="pi pi-print" (click)="printSchedule()"></button>
           <button pButton type="button" class="p-button-outlined" label="Templates" icon="pi pi-angle-down" (click)="showTemplates.set(true)"></button>
           <button pButton type="button" [label]="published() ? 'Published ✓' : 'Publish'" [icon]="published() ? 'pi pi-check' : 'pi pi-send'" [class.p-button-success]="published()" (click)="publishSchedule()"></button>
         </div>
@@ -655,6 +656,12 @@ const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
         align-items: flex-start;
       }
     }
+
+    @media print {
+      .header-actions, .schedule-footer { display: none !important; }
+      .schedule-page { padding: 0 !important; }
+      .schedule-grid { font-size: 10px; }
+    }
   `],
 })
 export class SchedulePage {
@@ -1227,6 +1234,10 @@ export class SchedulePage {
   }
 
   readonly published = signal(false);
+
+  printSchedule(): void {
+    window.print();
+  }
 
   publishSchedule(): void {
     const rows = this.scheduleRows();

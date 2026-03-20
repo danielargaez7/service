@@ -283,6 +283,68 @@ body.dark-mode .p-dialog .p-dialog-footer {
   color: var(--sc-gray-4) !important;
 }
 
+/* ── Print Styles ── */
+@media print {
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+
+  /* Hide shell chrome */
+  .sidebar,
+  .top-header,
+  .mobile-menu-btn,
+  .header-actions button,
+  .schedule-footer,
+  .role-strip,
+  .search-bar,
+  .search-shell,
+  p-toast {
+    display: none !important;
+  }
+
+  /* Make main content full width */
+  .shell,
+  .main-wrapper {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .content-area {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Clean backgrounds for print */
+  body,
+  .shell,
+  .main-wrapper,
+  .content-area {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Ensure grid doesn't overflow */
+  .schedule-grid {
+    font-size: 9px !important;
+    overflow: visible !important;
+  }
+
+  /* Show page title */
+  .page-header h1,
+  .page-header h2 {
+    color: black !important;
+    font-size: 16pt !important;
+  }
+
+  .page-header .subtitle,
+  .page-header p {
+    color: #333 !important;
+  }
+}
+
 /* ── Utility Classes ── */
 .w-full {
   width: 100%;
