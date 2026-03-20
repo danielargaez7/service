@@ -283,6 +283,13 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
                 <div class="hos-footer">
                   <span>{{ risk.hoursRemaining }}h left this cycle</span>
                 </div>
+                <div class="hos-alert-note">
+                  @if ((risk.hoursRemaining ?? 0) <= 2) {
+                    <i class="pi pi-phone"></i> Driver notified to end shift — manager alerted
+                  } @else if ((risk.hoursRemaining ?? 0) <= 4) {
+                    <i class="pi pi-comment"></i> SMS alert sent to driver and dispatcher
+                  }
+                </div>
               </article>
             }
           </div>
@@ -370,6 +377,17 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
           <span>· {{ overdueManifests().length }} overdue</span>
         </div>
       </section>
+
+      <!-- Submit Confirmation Overlay -->
+      @if (showSubmitConfirm()) {
+        <div class="submit-overlay" (click)="showSubmitConfirm.set(false)">
+          <div class="submit-modal">
+            <i class="pi pi-check-circle"></i>
+            <h3>Submitted to EPA</h3>
+            <p>{{ submitConfirmMessage() }}</p>
+          </div>
+        </div>
+      }
 
       <!-- Risk Table -->
       <p-table
@@ -615,6 +633,19 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
       color: var(--sc-text-secondary);
       font-weight: 600;
     }
+    .hos-alert-note {
+      font-size: var(--sc-text-xs);
+      color: var(--sc-warning-4);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--sc-border);
+      margin-top: 6px;
+    }
+    .hos-card.critical .hos-alert-note {
+      color: var(--sc-danger-4);
+    }
     .hos-status {
       font-size: var(--sc-text-xs);
       font-weight: 700;
@@ -673,8 +704,9 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
     }
     .manifest-groups {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: var(--sc-space-4);
+      align-items: start;
     }
     .manifest-group {
       display: flex;
@@ -812,9 +844,52 @@ const MOCK_MANIFESTS: ManifestRecord[] = [
       color: var(--sc-success-3);
     }
 
+    /* Submit Confirmation Overlay */
+    .submit-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      animation: fadeIn 0.2s ease;
+      cursor: pointer;
+    }
+    .submit-modal {
+      background: white;
+      border-radius: 16px;
+      padding: 48px 56px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      animation: scaleIn 0.25s ease;
+      cursor: default;
+    }
+    .submit-modal i {
+      font-size: 3rem;
+      color: var(--sc-success-3);
+      margin-bottom: 16px;
+    }
+    .submit-modal h3 {
+      margin: 0 0 8px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--sc-text-primary);
+    }
+    .submit-modal p {
+      margin: 0;
+      color: var(--sc-text-secondary);
+      font-size: 0.95rem;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
     @media (max-width: 1024px) {
       .summary-cards { grid-template-columns: repeat(2, 1fr); }
       .hos-board { grid-template-columns: 1fr; }
+      .manifest-groups { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
       .summary-cards { grid-template-columns: 1fr; }
@@ -827,6 +902,8 @@ export class CompliancePage {
     MOCK_RISKS.map((r) => ({ ...r, severityOrder: this.severityToOrder(r.severity) }))
   );
   manifestRecords = signal<ManifestRecord[]>(MOCK_MANIFESTS);
+  showSubmitConfirm = signal(false);
+  submitConfirmMessage = signal('');
   searchTerm = signal('');
   riskTypeFilter = signal<string | null>(null);
   severityFilter = signal<string | null>(null);
@@ -982,11 +1059,9 @@ export class CompliancePage {
           : record
       )
     );
-    this.alerts.high(
-      'Manifest batch submitted',
-      `${pendingCount} manifest record${pendingCount === 1 ? '' : 's'} were submitted electronically.`,
-      '/compliance'
-    );
+    this.submitConfirmMessage.set(`${pendingCount} manifest record${pendingCount === 1 ? '' : 's'} submitted electronically to EPA.`);
+    this.showSubmitConfirm.set(true);
+    setTimeout(() => this.showSubmitConfirm.set(false), 3000);
   }
 
   submitManifest(record: ManifestRecord): void {
@@ -997,11 +1072,9 @@ export class CompliancePage {
           : item
       )
     );
-    this.alerts.high(
-      'Manifest submitted',
-      `${record.employeeName}'s disposal record for ${record.routeLabel} was submitted successfully.`,
-      '/compliance'
-    );
+    this.submitConfirmMessage.set(`${record.employeeName}'s disposal record for ${record.routeLabel} submitted to EPA.`);
+    this.showSubmitConfirm.set(true);
+    setTimeout(() => this.showSubmitConfirm.set(false), 3000);
   }
 
   viewManifest(record: ManifestRecord): void {

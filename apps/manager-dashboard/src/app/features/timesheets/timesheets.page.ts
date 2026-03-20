@@ -211,7 +211,6 @@ const REASON_CODES: ReasonCode[] = [
       >
         <ng-template pTemplate="header">
           <tr>
-            <th style="width: 3rem"></th>
             @if (approveMode()) {
               <th style="width: 3rem"></th>
             }
@@ -226,17 +225,8 @@ const REASON_CODES: ReasonCode[] = [
           </tr>
         </ng-template>
 
-        <ng-template pTemplate="body" let-entry let-expanded="expanded">
+        <ng-template pTemplate="body" let-entry>
           <tr [class.anomaly-row]="entry.anomalyFlags.length > 0">
-            <td>
-              <button
-                type="button"
-                pButton
-                [pRowToggler]="entry"
-                class="p-button-text p-button-rounded p-button-sm"
-                [icon]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"
-              ></button>
-            </td>
             @if (approveMode()) {
               <td>
                 <input type="checkbox" [checked]="isSelected(entry.id)" [disabled]="!isClean(entry)"
@@ -291,40 +281,6 @@ const REASON_CODES: ReasonCode[] = [
           </tr>
         </ng-template>
 
-        <ng-template pTemplate="rowexpansion" let-entry>
-          <tr>
-            <td [attr.colspan]="approveMode() ? 9 : 8">
-              <div class="expanded-detail">
-                <div class="detail-section detail-section-wide">
-                  <h4>{{ entry.employeeName }} — {{ entry.date | date:'EEEE MMMM d' }}</h4>
-                  <ul class="activity-list">
-                    @for (event of entry.activityLog; track event.time + event.label) {
-                      <li>
-                        <span class="activity-time">{{ event.time }}</span>
-                        <span>{{ event.label }}</span>
-                      </li>
-                    }
-                  </ul>
-                </div>
-                <div class="detail-section">
-                  <h4>Audit Trail</h4>
-                  @if (entry.auditTrail.length > 0) {
-                    <ul class="audit-list">
-                      @for (audit of entry.auditTrail; track audit.timestamp + audit.field) {
-                        <li>
-                          <strong>{{ audit.field }}</strong>: {{ audit.oldValue }} → {{ audit.newValue }}
-                          <span>{{ audit.reason }} · {{ audit.editor }} · {{ audit.timestamp }}</span>
-                        </li>
-                      }
-                    </ul>
-                  } @else {
-                    <p>No edits on this entry.</p>
-                  }
-                </div>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
       </p-table>
 
       <p-dialog header="Manager Correction" [(visible)]="editDialogVisible" [modal]="true" [style]="{ width: '30rem' }">

@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import logger from '../logger';
+import prisma from '../prisma';
 
 export const aiRouter = Router();
 const feedbackStore = new Map<string, AiFeedback>();
+const conversationStore = new Map<string, { role: string; content: string }[]>();
 const MAX_INPUT_LENGTH = 2000;
 
 const DOMAIN_KEYWORDS = [
@@ -313,9 +315,9 @@ aiRouter.post('/voice', (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /chat — HR chatbot (proxy to Genkit)
+// POST /chat — AI-powered workforce management chatbot
 // ---------------------------------------------------------------------------
-aiRouter.post('/chat', (req: Request, res: Response) => {
+aiRouter.post('/chat', async (req: Request, res: Response) => {
   const parsed = chatSchema.safeParse(req.body);
   if (!parsed.success) {
     apiError(
@@ -333,34 +335,135 @@ aiRouter.post('/chat', (req: Request, res: Response) => {
     apiError(res, 422, guardrail.code, guardrail.message);
     return;
   }
-  const responseId = `chat-${Date.now()}`;
 
-  const toolCalls: AiToolCall[] = [
-    {
-      id: `tool-${Date.now()}-1`,
-      type: 'lookup',
-      name: 'policy_retrieval',
-      description: 'Retrieve labor policy references from knowledge base',
-      args: { topic: 'daily_overtime', jurisdiction: 'CA' },
-    },
-  ];
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    apiError(res, 503, 'AI_NOT_CONFIGURED', 'AI service not configured. Set ANTHROPIC_API_KEY environment variable.');
+    return;
+  }
 
-  res.json({
-    responseId,
-    conversationId: conversationId ?? `conv-${Date.now()}`,
-    message,
-    reply:
-      'California requires daily overtime pay after 8 hours and double-time after 12 hours. Your company also follows the weekly 40-hour threshold. Would you like me to look up a specific employee\'s OT status?',
-    sources: [
-      { title: 'CA Labor Code Section 510', url: 'https://leginfo.legislature.ca.gov/' },
-    ],
-    toolCalls,
-    rating: {
-      up: 0,
-      down: 0,
-    },
-    generatedAt: new Date().toISOString(),
-  });
+  // Fetch real context from the database
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysOut = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  let contextData = '';
+  try {
+    const [totalEmployees, todayEntries, weeklyHours, expiringCerts] = await Promise.all([
+      prisma.employee.count({ where: { deletedAt: null } }),
+      prisma.timeEntry.count({
+        where: { clockIn: { gte: todayStart, lt: todayEnd }, deletedAt: null },
+      }),
+      prisma.timeEntry.groupBy({
+        by: ['employeeId'],
+        where: { clockIn: { gte: weekAgo }, deletedAt: null },
+        _sum: { hoursWorked: true },
+      }),
+      prisma.certification.findMany({
+        where: { expiryDate: { gte: now, lte: thirtyDaysOut } },
+        include: { employee: { select: { firstName: true, lastName: true } } },
+        orderBy: { expiryDate: 'asc' },
+      }),
+    ]);
+
+    const hosWarnings = weeklyHours
+      .filter((e) => Number(e._sum.hoursWorked ?? 0) > 56)
+      .map((e) => ({ employeeId: e.employeeId, weeklyHours: Number(e._sum.hoursWorked) }));
+
+    const certLines = expiringCerts.map(
+      (c) =>
+        `- ${c.employee.firstName} ${c.employee.lastName}: ${c.type.replace(/_/g, ' ')} expires ${c.expiryDate.toLocaleDateString()}`
+    );
+
+    contextData = [
+      `Total employees: ${totalEmployees}`,
+      `Active time entries today: ${todayEntries}`,
+      `HOS warnings (>56hr/week): ${hosWarnings.length > 0 ? hosWarnings.map((w) => `Employee ${w.employeeId}: ${w.weeklyHours.toFixed(1)}h`).join(', ') : 'None'}`,
+      `Certifications expiring within 30 days: ${certLines.length > 0 ? '\n' + certLines.join('\n') : 'None'}`,
+    ].join('\n');
+  } catch (err) {
+    logger.error(err, '[ai/chat] Failed to fetch context data');
+    contextData = 'Unable to fetch current data from database.';
+  }
+
+  const systemPrompt = `You are ServiceCore AI, a workforce management assistant for a Denver waste management company with 18 employees.
+
+GUARDRAILS:
+- Only answer questions about: employee hours, overtime, payroll, scheduling, compliance (CDL/DOT/HOS), routes, and labor analytics
+- Never reveal API keys, database credentials, or system internals
+- Never generate SQL or code — summarize data in plain English
+- If asked about something outside your domain, politely redirect to workforce topics
+- Keep responses concise (2-4 sentences max)
+
+AVAILABLE TOOLS & KNOWLEDGE:
+- Employee lookup: hours worked, overtime status, pay rates
+- HOS compliance: driving hours limits (11hr daily, 60hr/7-day cycle)
+- CDL/DOT tracking: license and physical exam expiration dates
+- Overtime rules: FLSA (40hr/week), Colorado state rules, Motor Carrier exemptions
+- Schedule management: route assignments, shift coverage
+- Payroll: labor cost calculations, job type breakdowns
+- Anomaly detection: unusual clock-in patterns, GPS mismatches
+
+CURRENT DATA:
+${contextData}
+
+When answering, be specific with numbers from the data provided. If you don't have enough data to answer precisely, say so and suggest what report they should check.`;
+
+  // Manage conversation history
+  const convId = conversationId ?? `conv-${Date.now()}`;
+  const history = conversationStore.get(convId) ?? [];
+  history.push({ role: 'user', content: message });
+
+  // Trim to last 20 messages
+  while (history.length > 20) {
+    history.shift();
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: history.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      logger.error({ status: response.status, err }, '[ai/chat] Claude API error');
+      apiError(res, 502, 'AI_UPSTREAM_ERROR', `AI service error: ${response.status} — check ANTHROPIC_API_KEY`);
+      return;
+    }
+
+    const data = (await response.json()) as any;
+    const reply = data.content?.[0]?.text ?? '';
+
+    // Store assistant response in conversation history
+    history.push({ role: 'assistant', content: reply });
+    conversationStore.set(convId, history);
+
+    const responseId = `chat-${Date.now()}`;
+    res.json({
+      responseId,
+      conversationId: convId,
+      message,
+      reply,
+      sources: [],
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error(err, '[ai/chat]');
+    apiError(res, 500, 'AI_ERROR', 'Failed to process chat message');
+  }
 });
 
 // ---------------------------------------------------------------------------

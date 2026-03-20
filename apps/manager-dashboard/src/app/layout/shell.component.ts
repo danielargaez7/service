@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../core/auth.service';
 import { ManagerAlert, ManagerAlertsService } from '../core/manager-alerts.service';
+import { ChatWidgetComponent } from '../shared/chat-widget.component';
 
 interface NavItem {
   label: string;
@@ -20,7 +21,7 @@ interface NavSection {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterModule, ToastModule],
+  imports: [CommonModule, RouterModule, ToastModule, ChatWidgetComponent],
   selector: 'app-shell',
   template: `
     <div class="shell" [class.sidebar-collapsed]="sidebarCollapsed()">
@@ -212,6 +213,16 @@ interface NavSection {
         </main>
       </div>
     </div>
+
+    <!-- AI Chat Widget -->
+    @if (chatOpen()) {
+      <app-chat-widget [visible]="chatOpen()" (visibleChange)="chatOpen.set($event)" />
+    }
+
+    <!-- AI Chat FAB -->
+    <button class="chat-fab" [class.chat-open]="chatOpen()" (click)="openChat()" title="Ask ServiceCore AI">
+      <i class="pi" [class.pi-comments]="!chatOpen()" [class.pi-times]="chatOpen()"></i>
+    </button>
 
     <!-- Mobile overlay -->
     @if (mobileMenuOpen()) {
@@ -782,6 +793,38 @@ interface NavSection {
       display: none;
     }
 
+    /* AI Chat FAB */
+    .chat-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: all 0.2s ease;
+    }
+    .chat-fab:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 24px rgba(249, 115, 22, 0.5);
+    }
+    .chat-fab:active {
+      transform: scale(0.95);
+    }
+    .chat-fab.chat-open {
+      background: #64748b;
+      box-shadow: 0 4px 16px rgba(100, 116, 139, 0.4);
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         position: fixed;
@@ -844,6 +887,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   mobileMenuOpen = signal(false);
   isDarkMode = signal(false);
   notificationsOpen = signal(false);
+  chatOpen = signal(false);
   private mediaQuery: MediaQueryList | null = null;
   private readonly mediaChangeHandler = (event: MediaQueryListEvent): void => {
     if (localStorage.getItem('sc-theme')) return;
@@ -918,6 +962,10 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   toggleNotifications(): void {
     this.notificationsOpen.update((isOpen) => !isOpen);
+  }
+
+  openChat(): void {
+    this.chatOpen.update(v => !v);
   }
 
   openAlert(alert: ManagerAlert): void {
