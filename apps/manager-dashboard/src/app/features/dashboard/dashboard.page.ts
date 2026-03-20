@@ -174,7 +174,10 @@ interface RiskBoardItem {
         <div class="panel panel-trend">
           <div class="panel-header">
             <h3><i class="pi pi-chart-line"></i> Labor Cost Trend</h3>
-            <span class="trend-total">{{ weeklyLaborTotal() }}</span>
+            <div class="trend-header-right">
+              <span class="trend-total">{{ weeklyLaborTotal() }}</span>
+              <span class="trend-delta up"><i class="pi pi-arrow-up"></i> 6% vs last week</span>
+            </div>
           </div>
           <div class="panel-body">
             <div class="trend-chart">
@@ -600,11 +603,27 @@ interface RiskBoardItem {
       font-weight: 700;
       cursor: pointer;
     }
-    .trend-total {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--sc-text-secondary);
+    .trend-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
     }
+    .trend-total {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--sc-text-primary);
+    }
+    .trend-delta {
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .trend-delta.up { color: #ef4444; }
+    .trend-delta.down { color: #059669; }
+    .trend-delta i { font-size: 0.65rem; }
     .trend-chart {
       display: flex;
       gap: 10px;
