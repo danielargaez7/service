@@ -2,7 +2,7 @@
 set -e
 
 echo "[entrypoint] Running Prisma migrations..."
-npx prisma migrate deploy --schema=apps/backend-api/prisma/schema.prisma 2>&1 || echo "[entrypoint] Migration warning (may already be applied)"
+npx prisma migrate deploy --config=apps/backend-api/prisma/prisma.config.ts 2>&1 || echo "[entrypoint] Migration warning (may already be applied)"
 
 echo "[entrypoint] Checking if database needs seeding..."
 node -e "
