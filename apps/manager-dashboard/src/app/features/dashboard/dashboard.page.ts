@@ -177,16 +177,26 @@ interface RiskBoardItem {
             <span class="trend-total">{{ weeklyLaborTotal() }}</span>
           </div>
           <div class="panel-body">
+            <div class="trend-chart">
+            <div class="trend-y-axis">
+              <span>$5k</span>
+              <span>$4k</span>
+              <span>$3k</span>
+              <span>$2k</span>
+              <span>$1k</span>
+              <span>$0</span>
+            </div>
             <div class="trend-bars">
               @for (bar of laborTrend; track bar.day) {
                 <div class="trend-bar-group" [class.trend-peak]="bar.peak">
                   <span class="trend-value">{{ bar.cost }}</span>
-                  <div class="trend-bar" [style.height.%]="bar.percent">
-                    <div class="trend-bar-fill"></div>
+                  <div class="trend-bar-wrapper">
+                    <div class="trend-bar" [style.height.%]="bar.percent"></div>
                   </div>
                   <span class="trend-day">{{ bar.day }}</span>
                 </div>
               }
+            </div>
             </div>
             <div class="trend-legend">
               <span class="trend-legend-item"><i class="trend-dot regular"></i> Regular</span>
@@ -195,52 +205,6 @@ interface RiskBoardItem {
           </div>
         </div>
 
-        <div class="panel panel-gamification">
-          <div class="panel-header">
-            <h3><i class="pi pi-trophy"></i> Team Leaderboard</h3>
-            <div class="period-switch">
-              @for (period of leaderboardPeriods; track period.value) {
-                <button
-                  type="button"
-                  class="period-btn"
-                  [class.active]="gamification.selectedPeriod() === period.value"
-                  (click)="setLeaderboardPeriod(period.value)"
-                >
-                  {{ period.label }}
-                </button>
-              }
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="leaderboard-podium">
-              @for (leader of gamification.leaders(); track leader.name; let idx = $index) {
-                <div class="podium-spot" [class]="'rank-' + (idx + 1)">
-                  <span class="podium-rank">
-                    {{ idx === 0 ? '1st' : idx === 1 ? '2nd' : '3rd' }}
-                  </span>
-                  <strong>{{ leader.name }}</strong>
-                  <span class="podium-points">{{ leader.points }} pts</span>
-                  @if (leader.badge) {
-                    <span class="champion-badge">{{ leader.badge.icon }} {{ leader.badge.name }}</span>
-                  }
-                </div>
-              }
-            </div>
-
-            <div class="recent-badges">
-              <p class="section-label">Recent Badges</p>
-              @for (award of gamification.recentAwards(); track award.driverName + award.badge.name) {
-                <div class="badge-award-row">
-                  <span class="badge-award-icon">{{ award.badge.icon }}</span>
-                  <span class="badge-award-copy">
-                    <strong>{{ award.driverName }}</strong> earned {{ award.badge.name }}
-                  </span>
-                  <span class="badge-award-time">{{ award.awardedAt }}</span>
-                </div>
-              }
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- AI Insights -->
@@ -641,13 +605,27 @@ interface RiskBoardItem {
       font-weight: 700;
       color: var(--sc-text-secondary);
     }
-    .trend-bars {
-      height: 150px;
+    .trend-chart {
       display: flex;
-      align-items: flex-end;
+      gap: 10px;
+    }
+    .trend-y-axis {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 120px;
+      padding-bottom: 22px;
+      font-size: 0.65rem;
+      color: var(--sc-text-secondary);
+      font-weight: 600;
+      text-align: right;
+      min-width: 28px;
+    }
+    .trend-bars {
+      flex: 1;
+      display: flex;
       justify-content: space-between;
       gap: 8px;
-      padding-top: 20px;
     }
     .trend-bar-group {
       flex: 1;
@@ -667,31 +645,31 @@ interface RiskBoardItem {
     .trend-bar-group:hover .trend-value {
       opacity: 1;
     }
-    .trend-bar {
+    .trend-bar-wrapper {
       width: 100%;
-      max-width: 42px;
-      min-height: 12px;
-      border-radius: 8px 8px 4px 4px;
-      background: linear-gradient(180deg, rgba(249, 115, 22, 0.15), rgba(249, 115, 22, 0.05));
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.15s ease;
+      height: 120px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
     }
-    .trend-bar-fill {
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
+    .trend-bar {
+      width: 36px;
+      min-height: 8px;
+      border-radius: 8px 8px 4px 4px;
       background: linear-gradient(180deg, var(--sc-orange), var(--sc-orange-dark, #c2410c));
+      transition: transform 0.15s ease;
       animation: barGrow 0.6s ease-out;
+      transform-origin: bottom;
     }
     @keyframes barGrow {
-      from { transform: scaleY(0); transform-origin: bottom; }
-      to { transform: scaleY(1); transform-origin: bottom; }
+      from { transform: scaleY(0); }
+      to { transform: scaleY(1); }
     }
     .trend-bar-group:hover .trend-bar {
-      transform: scaleY(1.05);
+      transform: scaleY(1.08);
+      transform-origin: bottom;
     }
-    .trend-peak .trend-bar-fill {
+    .trend-peak .trend-bar {
       background: linear-gradient(180deg, #ef4444, #dc2626);
     }
     .trend-peak .trend-value {
