@@ -91,34 +91,6 @@ import { AuthService } from '../../core/auth.service';
             </button>
           </form>
 
-          <!-- Demo Accounts -->
-          <div class="demo-section">
-            <div class="demo-divider"><span>Demo Accounts</span></div>
-            <div class="demo-grid">
-              <button type="button" class="demo-card" (click)="fillDemo('manager@servicecore.com')">
-                <div class="demo-avatar mgr">JC</div>
-                <div class="demo-info">
-                  <strong>Jacob Clark</strong>
-                  <span>Route Manager</span>
-                </div>
-              </button>
-              <button type="button" class="demo-card" (click)="fillDemo('admin@servicecore.com')">
-                <div class="demo-avatar hr">SM</div>
-                <div class="demo-info">
-                  <strong>Sarah Mitchell</strong>
-                  <span>HR Admin</span>
-                </div>
-              </button>
-              <button type="button" class="demo-card" (click)="fillDemo('payroll@servicecore.com')">
-                <div class="demo-avatar pay">LN</div>
-                <div class="demo-info">
-                  <strong>Lisa Nguyen</strong>
-                  <span>Payroll Admin</span>
-                </div>
-              </button>
-            </div>
-            <p class="demo-hint">Click any account above · password is <strong>demo</strong></p>
-          </div>
         </div>
       </div>
     </div>
@@ -362,104 +334,6 @@ import { AuthService } from '../../core/auth.service';
       cursor: not-allowed;
     }
 
-    /* ── Demo Section ── */
-    .demo-section {
-      margin-top: 32px;
-    }
-
-    .demo-divider {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    .demo-divider::before, .demo-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #e2e8f0;
-    }
-
-    .demo-divider span {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      white-space: nowrap;
-    }
-
-    .demo-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .demo-card {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      background: #fff;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      font-family: inherit;
-      text-align: left;
-      width: 100%;
-    }
-
-    .demo-card:hover {
-      border-color: #f97316;
-      background: #fff7ed;
-      transform: translateX(3px);
-    }
-
-    .demo-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.72rem;
-      font-weight: 800;
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    .demo-avatar.mgr { background: #3b82f6; }
-    .demo-avatar.hr { background: #8b5cf6; }
-    .demo-avatar.pay { background: #10b981; }
-
-    .demo-info {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
-    .demo-info strong {
-      font-size: 0.85rem;
-      color: #0f172a;
-    }
-
-    .demo-info span {
-      font-size: 0.74rem;
-      color: #64748b;
-    }
-
-    .demo-hint {
-      text-align: center;
-      font-size: 0.72rem;
-      color: #94a3b8;
-      margin: 12px 0 0;
-    }
-
-    .demo-hint strong {
-      color: #64748b;
-    }
 
     /* ── Responsive ── */
     @media (max-width: 900px) {
@@ -484,8 +358,8 @@ import { AuthService } from '../../core/auth.service';
   `],
 })
 export class LoginPage {
-  email = '';
-  password = '';
+  email = 'admin@servicecore.io';
+  password = 'demo';
   loading = signal(false);
   errorMessage = signal('');
 
@@ -493,12 +367,6 @@ export class LoginPage {
     private auth: AuthService,
     private router: Router
   ) {}
-
-  fillDemo(email: string): void {
-    this.email = email;
-    this.password = 'demo';
-    this.errorMessage.set('');
-  }
 
   async onLogin(): Promise<void> {
     if (!this.email || !this.password) return;

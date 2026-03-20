@@ -192,30 +192,22 @@ const REASON_CODES: ReasonCode[] = [
       <app-report-filter-bar
         [searchTerm]="searchTerm()"
         [status]="statusFilter()"
-        [dateFrom]="dateFrom()"
-        [dateTo]="dateTo()"
         [statusOptions]="statusOptions"
         primaryActionLabel="Export"
-        secondaryActionLabel="Columns"
         (searchTermChange)="searchTerm.set($event)"
         (statusChange)="statusFilter.set($event)"
-        (dateFromChange)="dateFrom.set($event)"
-        (dateToChange)="dateTo.set($event)"
         (primaryAction)="exportData()"
-        (secondaryAction)="toggleColumns()"
       />
 
       <p-table
         [value]="filteredEntries()"
-        [paginator]="true"
-        [rows]="20"
-        [rowsPerPageOptions]="[10, 20, 50]"
+        [paginator]="false"
         [sortField]="'date'"
         [sortOrder]="-1"
         dataKey="id"
         [expandedRowKeys]="expandedRows"
         styleClass="p-datatable-sm p-datatable-striped sc-timesheet-table"
-        [tableStyle]="{ 'min-width': '108rem' }"
+        [tableStyle]="{ 'min-width': '60rem' }"
       >
         <ng-template pTemplate="header">
           <tr>
@@ -228,14 +220,9 @@ const REASON_CODES: ReasonCode[] = [
             <th pSortableColumn="jobType">Job Role / Type <p-sortIcon field="jobType" /></th>
             <th pSortableColumn="clockIn">Clock In <p-sortIcon field="clockIn" /></th>
             <th pSortableColumn="clockOut">Clock Out <p-sortIcon field="clockOut" /></th>
-            <th pSortableColumn="breakDuration">Break Duration <p-sortIcon field="breakDuration" /></th>
-            <th pSortableColumn="regularHours" class="table-numeric">Regular Hours <p-sortIcon field="regularHours" /></th>
-            <th pSortableColumn="otHours" class="table-numeric">OT Hours <p-sortIcon field="otHours" /></th>
-            <th pSortableColumn="totalPay" class="table-numeric">Total Pay <p-sortIcon field="totalPay" /></th>
-            <th pSortableColumn="gpsMatch">GPS Match <p-sortIcon field="gpsMatch" /></th>
-            <th pSortableColumn="routeMatch">Route Match <p-sortIcon field="routeMatch" /></th>
-            <th pSortableColumn="anomalyScore">Anomaly <p-sortIcon field="anomalyScore" /></th>
-            <th style="width: 12rem">Actions</th>
+            <th pSortableColumn="regularHours" class="table-numeric">Hours <p-sortIcon field="regularHours" /></th>
+            <th pSortableColumn="otHours" class="table-numeric">OT <p-sortIcon field="otHours" /></th>
+            <th style="width: 8rem">Actions</th>
           </tr>
         </ng-template>
 
@@ -270,45 +257,24 @@ const REASON_CODES: ReasonCode[] = [
             </td>
             <td>
               <button type="button" class="cell-link" (click)="openEditDialog(entry, 'clockIn')">
-                {{ entry.date }} {{ entry.clockIn }}
+                {{ entry.clockIn }}
               </button>
             </td>
             <td>
               <button type="button" class="cell-link" (click)="openEditDialog(entry, 'clockOut')">
                 @if (entry.clockOut) {
-                  {{ entry.date }} {{ entry.clockOut }}
+                  {{ entry.clockOut }}
                 } @else {
-                  Still active
+                  <span class="still-active">Active</span>
                 }
               </button>
             </td>
-            <td>
-              <button type="button" class="cell-link" (click)="openEditDialog(entry, 'breakDuration')">
-                {{ entry.breakDuration }} min
-              </button>
-            </td>
-            <td class="table-numeric">{{ entry.regularHours | number:'1.2-2' }}</td>
+            <td class="table-numeric">{{ entry.regularHours | number:'1.1-1' }}</td>
             <td class="table-numeric">
               <span class="ot-hours-cell" *ngIf="entry.otHours > 0; else noOt">
-                {{ entry.otHours | number:'1.2-2' }}
+                {{ entry.otHours | number:'1.1-1' }}
               </span>
-              <ng-template #noOt>0.00</ng-template>
-            </td>
-            <td class="table-numeric">{{ entry.totalPay | currency:'USD':'symbol':'1.2-2' }}</td>
-            <td>
-              <span class="match-indicator" [class.match-good]="entry.gpsMatch" [class.match-warn]="!entry.gpsMatch">
-                {{ entry.gpsMatch ? '✓' : '⚠' }}
-              </span>
-            </td>
-            <td>
-              <span class="match-indicator" [class.match-good]="entry.routeMatch" [class.match-warn]="!entry.routeMatch">
-                {{ entry.routeMatch ? '✓' : '⚠' }}
-              </span>
-            </td>
-            <td>
-              @if (entry.anomalyFlags.length > 0) {
-                <i class="pi pi-exclamation-circle anomaly-icon" [pTooltip]="entry.anomalyFlags.join(' • ')" tooltipPosition="left"></i>
-              }
+              <ng-template #noOt>—</ng-template>
             </td>
             <td>
               <div class="action-buttons">
@@ -327,7 +293,7 @@ const REASON_CODES: ReasonCode[] = [
 
         <ng-template pTemplate="rowexpansion" let-entry>
           <tr>
-            <td [attr.colspan]="approveMode() ? 15 : 14">
+            <td [attr.colspan]="approveMode() ? 9 : 8">
               <div class="expanded-detail">
                 <div class="detail-section detail-section-wide">
                   <h4>{{ entry.employeeName }} — {{ entry.date | date:'EEEE MMMM d' }}</h4>
@@ -437,6 +403,7 @@ const REASON_CODES: ReasonCode[] = [
     .match-warn { color: var(--sc-warning-4); }
 
     .anomaly-icon { color: var(--sc-danger-3); font-size: 1.1rem; cursor: help; }
+    .still-active { color: var(--sc-warning-4); font-weight: 600; font-size: var(--sc-text-xs); }
 
     .action-buttons { display: flex; gap: 4px; opacity: 0.3; transition: opacity 0.15s ease; }
     :host ::ng-deep .sc-timesheet-table .p-datatable-tbody > tr:hover .action-buttons { opacity: 1; }
@@ -493,8 +460,6 @@ export class TimesheetsPage implements OnInit {
   readonly loading = signal(false);
   readonly searchTerm = signal('');
   readonly statusFilter = signal<string | null>(null);
-  readonly dateFrom = signal('');
-  readonly dateTo = signal('');
   readonly approveMode = signal(false);
   readonly selectedIds = signal<string[]>([]);
   readonly editState = signal<EditState | null>(null);
@@ -516,8 +481,6 @@ export class TimesheetsPage implements OnInit {
     let result = this.entries();
     const search = this.searchTerm().toLowerCase().trim();
     const status = this.statusFilter();
-    const from = this.dateFrom();
-    const to = this.dateTo();
 
     if (search) {
       result = result.filter((entry) =>
@@ -526,8 +489,6 @@ export class TimesheetsPage implements OnInit {
       );
     }
     if (status) result = result.filter((entry) => entry.status === status);
-    if (from) result = result.filter((entry) => entry.date >= from);
-    if (to) result = result.filter((entry) => entry.date <= to);
     return result;
   });
 
@@ -543,7 +504,11 @@ export class TimesheetsPage implements OnInit {
     this.loading.set(true);
     this.api.getTimesheets({ limit: 100 }).subscribe({
       next: (res) => {
-        this.entries.set(res.data.map(mapApiEntry));
+        const mapped = res.data.map(mapApiEntry);
+        // Show only the most recent day's entries
+        const dates = [...new Set(mapped.map((e) => e.date))].sort().reverse();
+        const latestDate = dates[0] ?? '';
+        this.entries.set(mapped.filter((e) => e.date === latestDate));
         this.loading.set(false);
       },
       error: () => {

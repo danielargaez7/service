@@ -31,7 +31,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     const empId = employee?.id ?? 'demo-admin';
     const empEmail = employee?.email ?? email.toLowerCase();
     const firstName = employee?.firstName ?? email.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1))[0] ?? 'Demo';
-    const lastName = employee?.lastName ?? email.split('@')[0].split('.').slice(1).map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || 'Admin';
+    const lastName = employee?.lastName ?? (email.split('@')[0].split('.').slice(1).map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') || 'Admin');
 
     const payload: Omit<TokenPayload, 'iat' | 'exp'> = {
       sub: empId,
