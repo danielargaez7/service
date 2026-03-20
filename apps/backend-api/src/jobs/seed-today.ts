@@ -1,4 +1,5 @@
 import prisma from '../prisma';
+import logger from '../logger';
 
 const JOB_TYPES = [
   'RESIDENTIAL_SANITATION',
@@ -39,7 +40,7 @@ export async function seedTodayEntries(): Promise<void> {
   });
 
   if (existing > 0) {
-    console.log(`[ seed  ] Today already has ${existing} entries, skipping`);
+    logger.info(`[ seed  ] Today already has ${existing} entries, skipping`);
     return;
   }
 
@@ -52,7 +53,7 @@ export async function seedTodayEntries(): Promise<void> {
   });
 
   if (drivers.length === 0) {
-    console.log('[ seed  ] No drivers found, skipping daily seed');
+    logger.info('[ seed  ] No drivers found, skipping daily seed');
     return;
   }
 
@@ -103,5 +104,5 @@ export async function seedTodayEntries(): Promise<void> {
   }
 
   await prisma.timeEntry.createMany({ data: entries });
-  console.log(`[ seed  ] Created ${entries.length} time entries for today`);
+  logger.info(`[ seed  ] Created ${entries.length} time entries for today`);
 }

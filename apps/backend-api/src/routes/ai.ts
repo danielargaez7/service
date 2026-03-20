@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import logger from '../logger';
 
 export const aiRouter = Router();
 const feedbackStore = new Map<string, AiFeedback>();
@@ -219,7 +220,7 @@ Use the real data provided above. Be specific with numbers. Always respond with 
 
     if (!response.ok) {
       const err = await response.text();
-      console.error('[ai/nlq] Claude API error:', response.status, err);
+      logger.error({ status: response.status, err }, '[ai/nlq] Claude API error');
       apiError(res, 502, 'AI_UPSTREAM_ERROR', `AI service error: ${response.status} — check ANTHROPIC_API_KEY`);
       return;
     }
@@ -254,7 +255,7 @@ Use the real data provided above. Be specific with numbers. Always respond with 
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {
-    console.error('[ai/nlq]', err);
+    logger.error(err, '[ai/nlq]');
     apiError(res, 500, 'AI_ERROR', 'Failed to process AI query');
   }
 });

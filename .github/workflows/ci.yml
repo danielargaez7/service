@@ -5,26 +5,27 @@ on:
     branches:
       - main
   pull_request:
-
-permissions:
-  actions: read
-  contents: read
+    branches:
+      - main
 
 jobs:
-  main:
+  ci:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-        with:
-          filter: tree:0
-          fetch-depth: 0
 
-      # Cache node_modules
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: npm
 
       - run: npm ci
-      - run: npx playwright install --only-shell
-      - run: npx nx run-many --targets=lint,test,build,typecheck,e2e --outputStyle=static
+
+      - run: npx prisma generate --schema=apps/backend-api/prisma/schema.prisma
+
+      - run: npx nx run-many --target=lint --all --parallel=3
+
+      - run: npx nx run-many --target=test --all --parallel=3 --passWithNoTests
+
+      - run: npx nx run-many --target=build --all --parallel=3

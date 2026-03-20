@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import compression from 'compression';
 import http from 'http';
 import path from 'path';
+import logger from './logger';
 
 import { authRouter } from './routes/auth';
 import { timesheetsRouter } from './routes/timesheets';
@@ -33,6 +35,7 @@ const app = express();
 // Middleware
 // ---------------------------------------------------------------------------
 app.use(cors());
+app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
 app.use(compression());
 app.use('/uploads', express.static('uploads'));
@@ -120,7 +123,7 @@ app.use(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _next: express.NextFunction
   ) => {
-    console.error('[ERROR]', err.message, err.stack);
+    logger.error({ err, status: err.status ?? 500 }, err.message);
     const status = err.status ?? 500;
     res.status(status).json({
       error: err.message || 'Internal Server Error',
@@ -138,9 +141,9 @@ const wss = createWebSocketServer(server);
 
 if (process.env.NODE_ENV !== 'test') {
   server.listen(port, host, () => {
-    console.log(`[ ready ] http://${host}:${port}`);
-    console.log(`[ ws    ] WebSocket server attached`);
-    seedTodayEntries().catch((err) => console.error('[ seed  ] Failed:', err));
+    logger.info(`[ ready ] http://${host}:${port}`);
+    logger.info(`[ ws    ] WebSocket server attached`);
+    seedTodayEntries().catch((err) => logger.error(err, '[ seed  ] Failed'));
     startMissedClockoutJob();
     startTimesheetReminderJob();
   });

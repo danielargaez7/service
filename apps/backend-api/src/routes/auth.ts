@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { LoginRequest, LoginResponse, TokenPayload } from '@servicecore/shared-models';
 import prisma from '../prisma';
+import logger from '../logger';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me';
 const ACCESS_TOKEN_TTL = '1h';
@@ -48,7 +49,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
 
     res.json({ accessToken, refreshToken, employee: responseEmployee });
   } catch (err) {
-    console.error('[auth/login]', err);
+    logger.error(err, '[auth/login]');
     res.status(500).json({ error: 'Internal server error' });
   }
 });
