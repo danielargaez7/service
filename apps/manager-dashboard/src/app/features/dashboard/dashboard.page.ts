@@ -174,15 +174,23 @@ interface RiskBoardItem {
         <div class="panel panel-trend">
           <div class="panel-header">
             <h3><i class="pi pi-chart-line"></i> Labor Cost Trend</h3>
+            <span class="trend-total">{{ weeklyLaborTotal() }}</span>
           </div>
           <div class="panel-body">
             <div class="trend-bars">
               @for (bar of laborTrend; track bar.day) {
-                <div class="trend-bar-group">
-                  <div class="trend-bar" [style.height.%]="bar.percent"></div>
-                  <span>{{ bar.day }}</span>
+                <div class="trend-bar-group" [class.trend-peak]="bar.peak">
+                  <span class="trend-value">{{ bar.cost }}</span>
+                  <div class="trend-bar" [style.height.%]="bar.percent">
+                    <div class="trend-bar-fill"></div>
+                  </div>
+                  <span class="trend-day">{{ bar.day }}</span>
                 </div>
               }
+            </div>
+            <div class="trend-legend">
+              <span class="trend-legend-item"><i class="trend-dot regular"></i> Regular</span>
+              <span class="trend-legend-item"><i class="trend-dot ot"></i> Overtime</span>
             </div>
           </div>
         </div>
@@ -539,30 +547,42 @@ interface RiskBoardItem {
     }
 
     .risk-board-list {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
     }
     .risk-board-item {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 14px 16px;
+      gap: 6px;
+      padding: 18px 12px;
       border-radius: 12px;
       background: var(--sc-gray-1);
       border: 1px solid var(--sc-border, #e2e6ed);
+      text-align: center;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    .risk-critical { border-left: 3px solid var(--sc-danger-3); }
-    .risk-warning { border-left: 3px solid var(--sc-warning-3); }
-    .risk-success { border-left: 3px solid var(--sc-success-3); }
+    .risk-board-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+    .risk-critical { border-top: 3px solid var(--sc-danger-3); }
+    .risk-warning { border-top: 3px solid var(--sc-warning-3); }
+    .risk-success { border-top: 3px solid var(--sc-success-3); }
     .risk-count {
-      font-size: 1.2rem;
+      font-size: 1.6rem;
       font-weight: 800;
     }
+    .risk-critical .risk-count { color: var(--sc-danger-3); }
+    .risk-warning .risk-count { color: var(--sc-warning-3); }
+    .risk-success .risk-count { color: var(--sc-success-3); }
     .risk-label {
       color: var(--sc-text-secondary);
-      font-size: var(--sc-text-sm);
+      font-size: var(--sc-text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .pending-approval-card {
@@ -616,29 +636,98 @@ interface RiskBoardItem {
       font-weight: 700;
       cursor: pointer;
     }
+    .trend-total {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--sc-text-secondary);
+    }
     .trend-bars {
-      height: 110px;
+      height: 150px;
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
+      padding-top: 20px;
     }
     .trend-bar-group {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      position: relative;
+    }
+    .trend-value {
+      font-size: 0.68rem;
+      font-weight: 700;
       color: var(--sc-text-secondary);
-      font-size: var(--sc-text-xs);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .trend-bar-group:hover .trend-value {
+      opacity: 1;
     }
     .trend-bar {
       width: 100%;
-      max-width: 36px;
-      min-height: 28px;
-      border-radius: 10px 10px 4px 4px;
-      background: linear-gradient(180deg, var(--sc-orange-light), var(--sc-orange));
+      max-width: 42px;
+      min-height: 12px;
+      border-radius: 8px 8px 4px 4px;
+      background: linear-gradient(180deg, rgba(249, 115, 22, 0.15), rgba(249, 115, 22, 0.05));
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease;
     }
+    .trend-bar-fill {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(180deg, var(--sc-orange), var(--sc-orange-dark, #c2410c));
+      animation: barGrow 0.6s ease-out;
+    }
+    @keyframes barGrow {
+      from { transform: scaleY(0); transform-origin: bottom; }
+      to { transform: scaleY(1); transform-origin: bottom; }
+    }
+    .trend-bar-group:hover .trend-bar {
+      transform: scaleY(1.05);
+    }
+    .trend-peak .trend-bar-fill {
+      background: linear-gradient(180deg, #ef4444, #dc2626);
+    }
+    .trend-peak .trend-value {
+      opacity: 1;
+      color: #ef4444;
+    }
+    .trend-day {
+      font-size: var(--sc-text-xs);
+      color: var(--sc-text-secondary);
+      font-weight: 600;
+    }
+    .trend-peak .trend-day {
+      color: #ef4444;
+      font-weight: 700;
+    }
+    .trend-legend {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 14px;
+      font-size: 0.72rem;
+      color: var(--sc-text-secondary);
+    }
+    .trend-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .trend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .trend-dot.regular { background: var(--sc-orange); }
+    .trend-dot.ot { background: #ef4444; }
 
     .period-switch {
       display: inline-flex;
@@ -999,14 +1088,16 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
   ]);
 
   laborTrend = [
-    { day: 'Mon', percent: 42 },
-    { day: 'Tue', percent: 68 },
-    { day: 'Wed', percent: 55 },
-    { day: 'Thu', percent: 89 },
-    { day: 'Fri', percent: 100 },
-    { day: 'Sat', percent: 35 },
-    { day: 'Sun', percent: 18 },
+    { day: 'Mon', percent: 42, cost: '$2.1k', peak: false },
+    { day: 'Tue', percent: 68, cost: '$3.4k', peak: false },
+    { day: 'Wed', percent: 55, cost: '$2.8k', peak: false },
+    { day: 'Thu', percent: 89, cost: '$4.5k', peak: false },
+    { day: 'Fri', percent: 100, cost: '$5.0k', peak: true },
+    { day: 'Sat', percent: 35, cost: '$1.8k', peak: false },
+    { day: 'Sun', percent: 18, cost: '$0.9k', peak: false },
   ];
+
+  weeklyLaborTotal = () => '$20.5k this week';
   readonly leaderboardPeriods: Array<{ label: string; value: LeaderboardPeriod }> = [
     { label: 'Week', value: 'week' },
     { label: 'Month', value: 'month' },
