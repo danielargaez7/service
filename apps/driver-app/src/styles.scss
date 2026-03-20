@@ -165,11 +165,21 @@
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 150px;
-    height: 28px;
+    width: 126px;
+    height: 32px;
     background: #1a1a1a;
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 20px 20px;
     z-index: 9999;
+  }
+
+  /* Push content below the notch */
+  .phone-frame ion-header,
+  .phone-frame ion-toolbar:first-of-type {
+    padding-top: 34px !important;
+  }
+
+  .phone-frame ion-content {
+    --padding-top: 0;
   }
 
   .phone-frame app-root {

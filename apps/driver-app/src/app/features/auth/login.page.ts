@@ -82,14 +82,6 @@ import { AuthService } from '../../core/auth.service';
         </ion-button>
       </div>
 
-      <div class="demo-section">
-        <p class="demo-label">Demo Accounts <span>(password: demo)</span></p>
-        <div class="demo-buttons">
-          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('driver@servicecore.com'); demoLogin()">Driver (Carlos)</ion-button>
-          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('mike.chen@servicecore.com'); demoLogin()">Mike Chen</ion-button>
-          <ion-button fill="outline" size="small" color="medium" (click)="fillDemo('tom.garcia@servicecore.com'); demoLogin()">Tom Garcia</ion-button>
-        </div>
-      </div>
 
       <ion-toast
         [isOpen]="showError()"
@@ -189,8 +181,8 @@ import { AuthService } from '../../core/auth.service';
   ],
 })
 export class LoginPage {
-  readonly email = signal('');
-  readonly password = signal('');
+  readonly email = signal('driver@servicecore.com');
+  readonly password = signal('demo');
   readonly loading = signal(false);
   readonly showError = signal(false);
   readonly errorMessage = signal('');
