@@ -213,6 +213,8 @@ export class LoginPage {
     localStorage.setItem('sc_access_token', 'demo-token');
     localStorage.setItem('sc_refresh_token', 'demo-refresh');
     localStorage.setItem('sc_user', JSON.stringify(demoUser));
+    // Clear previous shift state so driver always starts fresh
+    localStorage.removeItem('sc_today_clock');
     // Update the auth service signal so the guard sees it
     this.authService.currentUser.set(demoUser);
     this.router.navigate(['/tabs/today']);
@@ -234,7 +236,9 @@ export class LoginPage {
 
     try {
       await this.authService.login(email, password);
-      this.router.navigate(['/tabs']);
+      // Clear previous shift state so driver always starts fresh
+      localStorage.removeItem('sc_today_clock');
+      this.router.navigate(['/tabs/today']);
     } catch (err: unknown) {
       const message =
         err instanceof Error
