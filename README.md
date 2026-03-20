@@ -1,19 +1,19 @@
 # ServiceCore Time Platform
 
-ServiceCore is an Nx monorepo for time tracking, payroll/compliance workflows, and operations dashboards.
-It includes two Angular frontends (manager + driver) and a Node/Express backend API.
+ServiceCore is a full-stack SaaS platform for field service labor management — time tracking, payroll, compliance, and workforce analytics built for portable sanitation, septic, and dumpster rental businesses.
 
 ## Stack
 
-- Angular 21 + Ionic + PrimeNG
-- Nx monorepo
-- Node/Express API
-- TypeScript across apps/libs
+- **Frontend:** Angular 21 + PrimeNG (manager dashboard), Angular 21 + Ionic 7 + Capacitor 6 (driver mobile app)
+- **Backend:** Node 22 + Express 5 + PostgreSQL 16 + Prisma ORM
+- **AI:** Anthropic Claude (NLQ, chatbot), Python scikit-learn (anomaly detection)
+- **Infrastructure:** Nx 22.5 monorepo, Docker Compose, Railway (production), GitHub Actions CI
+- **Security:** Helmet.js, JWT + refresh tokens, rate limiting, Zod validation, AI guardrails
 
 ## Apps
 
 - `apps/manager-dashboard` — manager web dashboard (`http://localhost:4200`)
-- `apps/driver-app` — driver app/web build (`http://localhost:4201`)
+- `apps/driver-app` — driver mobile/web app (`http://localhost:4201`)
 - `apps/backend-api` — REST + WebSocket backend (`http://localhost:3000`)
 
 ## Shared Libraries
@@ -117,15 +117,7 @@ TimeTrex legacy RPC auth modes:
 - `TIMETREX_AUTH_MODE=env_session` (default): uses `TIMETREX_SESSION_COOKIE` + `TIMETREX_CSRF_TOKEN`
 - `TIMETREX_AUTH_MODE=rpc_login`: backend logs in using `TIMETREX_USERNAME` + `TIMETREX_PASSWORD`, caches session auth, and auto-retries once on auth expiry
 
-Current login route is a demo/stub implementation for local dev:
-
-- demo emails include:
-  - `admin@servicecore.com`
-  - `manager@servicecore.com`
-  - `driver@servicecore.com`
-  - `payroll@servicecore.com`
-  - `exec@servicecore.com`
-- accepted demo passwords are `demo` and `password`
+Current login accepts any email/password and grants full SYSTEM_ADMIN access (demo mode). The dashboard login form is pre-filled with `admin@servicecore.io` / `demo` for one-click access.
 
 ## Troubleshooting
 
@@ -145,12 +137,32 @@ Current login route is a demo/stub implementation for local dev:
 - **Nx Cloud warning in local sandboxed environments**
   - warnings can be ignored for local development
 
+## Key Features
+
+- **Timesheet Approval Queue** — daily entries with approve/flag/edit workflow
+- **Pre-Payroll Audit** — confidence score, employee breakdown with expandable daily punches, one-click approve & export
+- **AI Chat Assistant** — floating widget powered by Claude with workforce guardrails and live DB context
+- **Driver Compliance** — CDL/DOT/HOS tracking with SMS alert notifications
+- **Fleet Map** — real-time driver positions across Denver metro
+- **Overtime Engine** — FLSA, state rules, Motor Carrier exemptions, CBA support
+- **What-If Simulator** — model labor cost scenarios before committing
+- **Auto-seed** — fresh demo data generated on server startup daily
+
+## CI/CD
+
+- **GitHub Actions** — lint, test, and build on every PR and push to main
+- **Railway** — production deployment at `service-production-931a.up.railway.app`
+
 ## Current Roadmap
 
 - [x] PrimeNG compatibility alignment for Angular 21.1
 - [x] one-command local startup (`dev:all`)
 - [x] local stop helper (`dev:stop`)
 - [x] watcher stability updates for local serve
+- [x] helmet.js + pino structured logging
+- [x] GitHub Actions CI pipeline
+- [x] floating AI chat widget with guardrails
+- [x] payroll confidence score + approve & export
 - [ ] replace remaining starter/scaffold docs in repo
 - [ ] broaden e2e coverage for manager + driver critical paths
 
