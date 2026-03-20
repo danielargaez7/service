@@ -13,11 +13,11 @@ RUN npx prisma generate --schema=apps/backend-api/prisma/schema.prisma
 # Build backend API
 RUN npx nx build backend-api --configuration=production --skip-nx-cache
 
-# Build manager dashboard (ignore budget warnings)
-RUN npx nx build manager-dashboard --configuration=production --skip-nx-cache 2>&1 || true
+# Build manager dashboard
+RUN npx nx build manager-dashboard --configuration=production --skip-nx-cache
 
-# Build driver app (ignore budget warnings)
-RUN npx nx build driver-app --configuration=production --skip-nx-cache 2>&1 || true
+# Build driver app
+RUN npx nx build driver-app --configuration=production --skip-nx-cache
 
 # Compile seed script to JS
 RUN npx tsc apps/backend-api/prisma/seed.ts --outDir dist/apps/backend-api --esModuleInterop --module commonjs --resolveJsonModule --skipLibCheck 2>&1 || true

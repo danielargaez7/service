@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
-import { environment } from '../../../environments/environment';
+import { environment } from '../../environments/environment';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -34,7 +34,7 @@ interface ChatResponse {
   imports: [CommonModule, FormsModule, InputTextModule, ButtonModule],
   selector: 'app-chat-widget',
   template: `
-    <div class="chat-panel" @if (visible) { } >
+    <div class="chat-panel">
       <!-- Header -->
       <div class="chat-header">
         <div class="chat-header-text">
