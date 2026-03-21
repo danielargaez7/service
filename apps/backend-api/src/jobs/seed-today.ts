@@ -59,37 +59,77 @@ export async function seedTodayEntries(): Promise<void> {
 
   const entries = [];
 
-  for (const driver of drivers) {
-    // Random clock-in between 5:30 AM and 7:30 AM
+  // Assign each driver a scenario for realistic variety
+  // 8 clean, 2 overtime, 1 missed clock-out, 1 suspiciously long, 1 GPS mismatch
+  type Scenario = 'clean' | 'overtime' | 'missed-clockout' | 'suspicious-long' | 'gps-mismatch';
+  const scenarios: Scenario[] = [];
+  for (let i = 0; i < drivers.length; i++) {
+    if (i === 0) scenarios.push('missed-clockout');
+    else if (i === 1) scenarios.push('suspicious-long');
+    else if (i === 2) scenarios.push('gps-mismatch');
+    else if (i === 3 || i === 4) scenarios.push('overtime');
+    else scenarios.push('clean');
+  }
+
+  for (let i = 0; i < drivers.length; i++) {
+    const driver = drivers[i];
+    const scenario = scenarios[i];
     const clockIn = new Date(today);
     const startHour = randomBetween(5.5, 7.5);
     clockIn.setHours(Math.floor(startHour), Math.round((startHour % 1) * 60), 0, 0);
 
-    // Random shift length 7-10 hours
-    const shiftHours = randomBetween(7, 10);
-    const clockOut = new Date(clockIn.getTime() + shiftHours * 60 * 60 * 1000);
-
-    // Only clock out if shift would have ended by now
-    const now = new Date();
-    const hasClockOut = clockOut < now;
-
-    const hoursWorked = hasClockOut
-      ? (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60)
-      : 0;
-    const regularHours = Math.min(hoursWorked, 8);
-    const otHours = Math.max(0, hoursWorked - 8);
-
     const coord = randomItem(DENVER_COORDS);
     const jitter = () => (Math.random() - 0.5) * 0.01;
 
+    let shiftHours: number;
+    let hasClockOut: boolean;
     const anomalyFlags: string[] = [];
-    const anomalyScore = Math.random() < 0.15 ? randomBetween(0.4, 0.8) : 0;
-    if (anomalyScore > 0.5) anomalyFlags.push('unusual-hours');
+    let anomalyScore = 0;
+
+    switch (scenario) {
+      case 'missed-clockout':
+        // Forgot to clock out — still active since this morning
+        hasClockOut = false;
+        shiftHours = 0;
+        break;
+      case 'suspicious-long':
+        // 14+ hour shift — either forgot or actually worked that long
+        hasClockOut = true;
+        shiftHours = randomBetween(13.5, 15);
+        anomalyScore = 0.85;
+        anomalyFlags.push('unusual-hours');
+        break;
+      case 'gps-mismatch':
+        // Clocked in from wrong location
+        hasClockOut = true;
+        shiftHours = randomBetween(7, 8);
+        anomalyScore = 0.7;
+        anomalyFlags.push('gps-mismatch');
+        break;
+      case 'overtime':
+        // Legit overtime — 9-10.5 hour shift
+        hasClockOut = true;
+        shiftHours = randomBetween(9, 10.5);
+        break;
+      default:
+        // Clean — normal 7-8 hour shift
+        hasClockOut = true;
+        shiftHours = randomBetween(6.5, 8);
+        break;
+    }
+
+    const clockOut = hasClockOut
+      ? new Date(clockIn.getTime() + shiftHours * 60 * 60 * 1000)
+      : null;
+
+    const hoursWorked = hasClockOut ? shiftHours : 0;
+    const regularHours = Math.min(hoursWorked, 8);
+    const otHours = Math.max(0, hoursWorked - 8);
 
     entries.push({
       employeeId: driver.id,
       clockIn,
-      clockOut: hasClockOut ? clockOut : null,
+      clockOut,
       jobType: randomItem(JOB_TYPES),
       routeId: `R-${Math.floor(randomBetween(1, 25))}`,
       gpsClockIn: { lat: coord.lat + jitter(), lng: coord.lng + jitter() },

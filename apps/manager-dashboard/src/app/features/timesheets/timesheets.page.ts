@@ -221,7 +221,7 @@ const REASON_CODES: ReasonCode[] = [
             <th pSortableColumn="clockOut">Clock Out <p-sortIcon field="clockOut" /></th>
             <th pSortableColumn="regularHours" class="table-numeric">Hours <p-sortIcon field="regularHours" /></th>
             <th pSortableColumn="otHours" class="table-numeric">OT <p-sortIcon field="otHours" /></th>
-            <th style="width: 8rem">Actions</th>
+            <th style="width: 14rem">Actions</th>
           </tr>
         </ng-template>
 
@@ -239,7 +239,7 @@ const REASON_CODES: ReasonCode[] = [
             <td pFrozenColumn>
               <div class="employee-cell">
                 <strong>{{ entry.employeeName }}</strong>
-                <small>{{ entry.employeeId }}</small>
+                <span class="entry-reason" [class]="'reason-' + getReasonTone(entry)">{{ getReasonLabel(entry) }}</span>
               </div>
             </td>
             <td>
@@ -267,15 +267,16 @@ const REASON_CODES: ReasonCode[] = [
               <ng-template #noOt>—</ng-template>
             </td>
             <td>
-              <div class="action-buttons">
-                <button pButton icon="pi pi-check" class="p-button-success p-button-sm p-button-rounded p-button-text"
-                  pTooltip="Approve" [disabled]="entry.status === 'APPROVED' || entry.status === 'EXPORTED'"
-                  (click)="approveEntry(entry)"></button>
-                <button pButton icon="pi pi-flag" class="p-button-warning p-button-sm p-button-rounded p-button-text"
-                  pTooltip="Flag" [disabled]="entry.status === 'FLAGGED' || entry.status === 'EXPORTED'"
-                  (click)="flagEntry(entry)"></button>
-                <button pButton icon="pi pi-pencil" class="p-button-info p-button-sm p-button-rounded p-button-text"
-                  pTooltip="Edit" (click)="openEditDialog(entry, 'clockIn')"></button>
+              <div class="action-buttons-visible">
+                @if (entry.status === 'APPROVED') {
+                  <span class="approved-badge"><i class="pi pi-check-circle"></i> Approved</span>
+                } @else {
+                  <button pButton label="Approve" icon="pi pi-check" class="p-button-success p-button-sm"
+                    (click)="approveEntry(entry)"></button>
+                  <button pButton label="Flag" icon="pi pi-flag" class="p-button-warning p-button-sm p-button-outlined"
+                    [disabled]="entry.status === 'FLAGGED'"
+                    (click)="flagEntry(entry)"></button>
+                }
               </div>
             </td>
           </tr>
@@ -319,7 +320,6 @@ const REASON_CODES: ReasonCode[] = [
     .header-actions { display: flex; gap: var(--sc-space-3); flex-wrap: wrap; }
 
     .employee-cell { display: flex; flex-direction: column; gap: 2px; min-width: 180px; }
-    .employee-cell small { color: var(--sc-text-secondary); font-size: var(--sc-text-xs); }
 
     .status-dot {
       width: 12px;
@@ -361,8 +361,45 @@ const REASON_CODES: ReasonCode[] = [
     .anomaly-icon { color: var(--sc-danger-3); font-size: 1.1rem; cursor: help; }
     .still-active { color: var(--sc-warning-4); font-weight: 600; font-size: var(--sc-text-xs); }
 
-    .action-buttons { display: flex; gap: 4px; opacity: 0.3; transition: opacity 0.15s ease; }
-    :host ::ng-deep .sc-timesheet-table .p-datatable-tbody > tr:hover .action-buttons { opacity: 1; }
+    .entry-reason {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 3px;
+    }
+    .reason-critical {
+      background: var(--sc-danger-1, #ffe6e9);
+      color: var(--sc-danger-4, #b91c1c);
+    }
+    .reason-warning {
+      background: var(--sc-warning-1, #fbd9b6);
+      color: var(--sc-warning-4, #92400e);
+    }
+    .reason-info {
+      background: var(--sc-gray-1, #f1f5f9);
+      color: var(--sc-text-secondary, #64748b);
+    }
+    .reason-success {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    .action-buttons-visible {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .approved-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--sc-success-3, #10b981);
+    }
 
     .anomaly-row td { background: var(--sc-danger-1) !important; }
     .anomaly-row td:first-child { border-left: 3px solid var(--sc-danger-3); }
@@ -479,6 +516,26 @@ export class TimesheetsPage implements OnInit {
     if (jobType.includes('Commercial')) return 'info';
     if (jobType.includes('Roll-Off')) return 'warn';
     return 'secondary';
+  }
+
+  getReasonLabel(entry: TimesheetEntry): string {
+    if (!entry.clockOut) return 'Still clocked in — needs clock-out';
+    if (entry.regularHours > 12) return entry.regularHours.toFixed(1) + 'h shift — verify or correct';
+    if (entry.anomalyFlags.includes('gps-mismatch')) return 'GPS doesn\'t match assigned route';
+    if (entry.anomalyFlags.includes('unusual-hours')) return 'Unusual shift length — verify';
+    if (entry.otHours > 0) return entry.otHours.toFixed(1) + 'h overtime — needs approval';
+    if (entry.status === 'APPROVED') return 'Approved';
+    return 'Ready to approve';
+  }
+
+  getReasonTone(entry: TimesheetEntry): string {
+    if (!entry.clockOut) return 'critical';
+    if (entry.regularHours > 12) return 'critical';
+    if (entry.anomalyFlags.includes('gps-mismatch')) return 'critical';
+    if (entry.anomalyFlags.includes('unusual-hours')) return 'warning';
+    if (entry.otHours > 0) return 'warning';
+    if (entry.status === 'APPROVED') return 'success';
+    return 'info';
   }
 
   toggleApproveMode(): void {
