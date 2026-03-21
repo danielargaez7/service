@@ -20,6 +20,7 @@ interface KpiCard {
   trendDirection: 'up' | 'down' | 'neutral';
   status: 'normal' | 'warning' | 'danger';
   icon: string;
+  route: string;
 }
 
 interface DriverMarker {
@@ -86,7 +87,7 @@ interface RiskBoardItem {
       <!-- KPI Strip -->
       <div class="kpi-strip">
         @for (kpi of kpiCards(); track kpi.label) {
-          <div class="kpi-card" [class.warning]="kpi.status === 'warning'" [class.danger]="kpi.status === 'danger'">
+          <button type="button" class="kpi-card" [class.warning]="kpi.status === 'warning'" [class.danger]="kpi.status === 'danger'" (click)="navigateTo(kpi.route)">
             <span class="kpi-label">{{ kpi.label }}</span>
             <span class="kpi-value kpi-number">{{ kpi.value }}</span>
             <span class="kpi-sub">{{ kpi.subtext }}</span>
@@ -94,7 +95,7 @@ interface RiskBoardItem {
               <i class="pi" [class.pi-arrow-up]="kpi.trendDirection === 'up'" [class.pi-arrow-down]="kpi.trendDirection === 'down'" [class.pi-minus]="kpi.trendDirection === 'neutral'"></i>
               {{ kpi.trend }}
             </div>
-          </div>
+          </button>
         }
       </div>
 
@@ -363,11 +364,15 @@ interface RiskBoardItem {
       border-left: 4px solid var(--sc-success-3);
       position: relative;
       transition: box-shadow 0.15s ease, transform 0.15s ease;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
     }
 
     .kpi-card.warning { border-left-color: var(--sc-warning-3); }
     .kpi-card.danger { border-left-color: var(--sc-danger-3); }
-    .kpi-card:hover { box-shadow: var(--sc-shadow-md); transform: translateY(-1px); }
+    .kpi-card:hover { box-shadow: var(--sc-shadow-md); transform: translateY(-2px); }
+    .kpi-card:active { transform: translateY(0); }
     .kpi-label {
       font-size: var(--sc-text-xs);
       font-weight: 700;
@@ -1044,6 +1049,7 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
         trendDirection: 'up',
         status: 'normal',
         icon: 'pi-users',
+        route: '/employees',
       },
       {
         label: 'Pending Timesheets',
@@ -1053,6 +1059,7 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
         trendDirection: exc.totalFlagged > 0 ? 'down' : 'up',
         status: exc.totalFlagged > 0 ? 'warning' : 'normal',
         icon: 'pi-check-circle',
+        route: '/timesheets',
       },
       {
         label: 'Missed Clock-Outs',
@@ -1062,6 +1069,7 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
         trendDirection: exc.missedClockOuts > 0 ? 'down' : 'up',
         status: exc.missedClockOuts > 0 ? 'danger' : 'normal',
         icon: 'pi-clock',
+        route: '/timesheets',
       },
       {
         label: 'Overtime / Hours of Service Alerts',
@@ -1071,6 +1079,7 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
         trendDirection: totalAlerts > 0 ? 'down' : 'neutral',
         status: totalAlerts > 0 ? 'danger' : 'warning',
         icon: 'pi-bell',
+        route: '/compliance',
       },
     ];
   });
