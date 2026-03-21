@@ -124,7 +124,7 @@ const ROUTE_STOPS: RouteStop[] = [
     IonSegmentButton,
   ],
   template: `
-    <ion-content class="routes-content">
+    <ion-content class="routes-content" style="--padding-top: 44px">
       <section class="hero">
         <div class="hero-copy">
           <p class="eyebrow">Dispatch Route</p>

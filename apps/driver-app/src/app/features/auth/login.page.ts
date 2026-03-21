@@ -96,8 +96,8 @@ import { AuthService } from '../../core/auth.service';
   styles: [
     `
       ion-toolbar {
-        --background: var(--sc-primary, #1565c0);
-        --color: #fff;
+        --background: linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6) !important;
+        --color: #fff !important;
       }
 
       .login-container {

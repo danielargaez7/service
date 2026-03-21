@@ -28,6 +28,7 @@ import {
   IonSelect,
   IonSelectOption,
   IonTextarea,
+  ToastController,
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
@@ -287,7 +288,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
 
                 @if (isRouteSummaryStep()) {
                   <div class="wizard-summary">
-                    <span>You completed 42 of 42 stops.</span>
+                    <span>You completed 8 of 8 stops.</span>
                     <span>Total drive time: 7h 12m</span>
                     <span>DOT hours used today: 7h 45m (on-duty)</span>
                   </div>
@@ -303,7 +304,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
                     <span>Clock In: 5:16 AM</span>
                     <span>Clock Out: 2:11 PM</span>
                     <span>Break: 30 min</span>
-                    <span>Worked: 8h 25m</span>
+                    <span>Worked: 4h 22m</span>
                   </div>
                   <div class="wizard-actions">
                     <ion-button expand="block" (click)="completeClockOut()">Yes, Submit</ion-button>
@@ -324,7 +325,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
             <ion-card-content>
               <div class="shift-detail-row"><ion-icon name="time-outline"></ion-icon><span>5:30 AM - 2:30 PM</span></div>
               <div class="shift-detail-row"><ion-icon name="car-outline"></ion-icon><span>{{ auth.currentUser()?.employeeClass?.replace('_', ' ') ?? 'Vehicle' }}</span></div>
-              <div class="shift-detail-row"><ion-icon name="map-outline"></ion-icon><span>42 stops · Est. 8.5 hours</span></div>
+              <div class="shift-detail-row"><ion-icon name="map-outline"></ion-icon><span>8 stops · Est. 4.5 hours</span></div>
             </ion-card-content>
           </ion-card>
 
@@ -396,7 +397,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
 
           <div class="sc-clock-out-area">
             <button class="sc-clock-out-btn" (click)="beginEndShiftWizard()">CLOCK OUT</button>
-            <button class="sc-break-btn" (click)="startBreak()">Take Break</button>
+            <button class="sc-break-btn" [style.background]="onBreak() ? '#fbbf24' : '#f3f4f6'" (click)="startBreak()">{{ onBreak() ? 'End Break' : 'Take Break' }}</button>
           </div>
 
           <ion-card class="sc-voice-card sc-advanced-feature" (click)="openVoiceFastFill()">
@@ -446,7 +447,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
             <ion-card-content>
               <ion-icon name="checkmark-circle" color="success"></ion-icon>
               <h2>Great work today!</h2>
-              <p>8h 25m · 42 stops completed</p>
+              <p>4h 22m · 8 stops completed</p>
               <p class="earnings">Estimated pay: \${{ todayEarnings().toFixed(2) }}</p>
             </ion-card-content>
           </ion-card>
@@ -737,6 +738,7 @@ export class TodayPage implements OnInit, OnDestroy {
   readonly volumeUnit = signal<ReasonableVolumeUnit>('GALLONS');
   readonly manifestNumber = signal('');
   readonly routeNotes = signal('');
+  readonly onBreak = signal(false);
   readonly incidentNotes = signal('');
   readonly stateCode = signal('CO');
   readonly currentShiftId = signal<string | null>(null);
@@ -801,7 +803,8 @@ export class TodayPage implements OnInit, OnDestroy {
     private complianceConfig: ComplianceConfigService,
     private attachments: DriverAttachmentsService,
     public geofenceDeparture: GeofenceDepartureService,
-    public auth: AuthService
+    public auth: AuthService,
+    private toastController: ToastController
   ) {
     addIcons({
       timeOutline,
@@ -1001,11 +1004,21 @@ export class TodayPage implements OnInit, OnDestroy {
     ]);
   }
 
-  startBreak(): void {
+  async startBreak(): Promise<void> {
+    const wasOnBreak = this.onBreak();
+    this.onBreak.set(!wasOnBreak);
+    const message = wasOnBreak ? 'Break ended. You are back on duty.' : 'Break started. Your unpaid break timer is running.';
     this.notifications.update((items) => [
-      { title: 'Break started', body: 'Your unpaid break timer has started.', read: false, icon: 'time-outline', color: 'primary' },
+      { title: wasOnBreak ? 'Break ended' : 'Break started', body: message, read: false, icon: 'time-outline', color: 'primary' },
       ...items,
     ]);
+    const toast = await this.toastController.create({
+      message,
+      duration: 2500,
+      position: 'top',
+      color: wasOnBreak ? 'success' : 'warning',
+    });
+    await toast.present();
   }
 
   async captureJobAttachment(

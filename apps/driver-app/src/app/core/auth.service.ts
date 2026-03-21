@@ -49,6 +49,7 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem('sc_today_clock');
     this.currentUser.set(null);
     this.router.navigate(['/login']);
   }

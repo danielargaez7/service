@@ -104,7 +104,7 @@ interface HOSStatus {
         [value]="filteredEmployees()"
         [paginator]="true"
         [rows]="20"
-        [sortField]="'lastName'"
+        [sortField]="'role'"
         [sortOrder]="1"
         dataKey="id"
         styleClass="p-datatable-sm p-datatable-striped"
