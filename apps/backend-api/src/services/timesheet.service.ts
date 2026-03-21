@@ -224,9 +224,11 @@ export class TimesheetService {
   async getExceptions() {
     const now = new Date();
     const cutoff = new Date(now.getTime() - 14 * 60 * 60 * 1000);
+    // Scope alerts to last 7 days for dashboard relevance
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const [missedClockOuts, hosWarnings, otAlerts, allFlagged] = await Promise.all([
-      // Missed clock-outs
+      // Missed clock-outs (active for 14+ hours)
       prisma.timeEntry.count({
         where: {
           clockOut: null,
@@ -235,23 +237,25 @@ export class TimesheetService {
           status: { notIn: ['REJECTED'] },
         },
       }),
-      // HOS warnings
+      // HOS warnings (last 7 days, pending/flagged only)
       prisma.timeEntry.count({
         where: {
           anomalyFlags: { hasSome: ['hos-violation', 'hos-warning'] },
+          clockIn: { gte: weekAgo },
           deletedAt: null,
-          status: { notIn: ['APPROVED', 'REJECTED', 'EXPORTED'] },
+          status: { in: ['PENDING', 'FLAGGED'] },
         },
       }),
-      // OT alerts
+      // OT alerts (last 7 days, pending/flagged only)
       prisma.timeEntry.count({
         where: {
           OR: [
             { anomalyFlags: { has: 'ot-warning' } },
             { overtimeHours: { gt: 0 } },
           ],
+          clockIn: { gte: weekAgo },
           deletedAt: null,
-          status: { notIn: ['APPROVED', 'REJECTED', 'EXPORTED'] },
+          status: { in: ['PENDING', 'FLAGGED'] },
         },
       }),
       // All flagged entries with details
