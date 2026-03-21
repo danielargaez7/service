@@ -36,6 +36,7 @@ import {
   cashOutline,
   checkmarkCircle,
   chevronForwardOutline,
+  cloudDownloadOutline,
   documentTextOutline,
   mapOutline,
   micOutline,
@@ -377,6 +378,21 @@ const FACILITY_OPTIONS: FacilityOption[] = [
               </ion-card-content>
             </ion-card>
           }
+          @if (loadingRoutes()) {
+            <ion-card class="sc-route-sync-card">
+              <ion-card-content>
+                <div class="route-sync-header">
+                  <ion-icon name="cloud-download-outline"></ion-icon>
+                  <strong>Syncing routes for offline use...</strong>
+                </div>
+                <div class="route-sync-bar">
+                  <div class="route-sync-fill" [style.width.%]="routeLoadProgress()"></div>
+                </div>
+                <span class="route-sync-pct">{{ routeLoadProgress() }}%</span>
+              </ion-card-content>
+            </ion-card>
+          }
+
           <ion-card class="sc-shift-card sc-shift-active">
             <ion-card-header>
               <ion-badge color="success">CLOCKED IN</ion-badge>
@@ -502,6 +518,42 @@ const FACILITY_OPTIONS: FacilityOption[] = [
   `,
   styles: [`
     .sc-today-content { --padding-start: 16px; --padding-end: 16px; --padding-top: 16px; }
+    .sc-route-sync-card {
+      margin-bottom: 12px;
+      margin-inline: 0;
+      width: 100%;
+      --background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+    .route-sync-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: #1e40af;
+      font-size: 0.88rem;
+    }
+    .route-sync-header ion-icon { font-size: 1.2rem; }
+    .route-sync-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: #dbeafe;
+      overflow: hidden;
+    }
+    .route-sync-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3b82f6, #2563eb);
+      transition: width 0.2s ease;
+    }
+    .route-sync-pct {
+      display: block;
+      text-align: right;
+      font-size: 0.72rem;
+      color: #3b82f6;
+      font-weight: 700;
+      margin-top: 4px;
+    }
     .sc-shift-card { margin-bottom: 16px; margin-inline: 0; width: 100%; }
     .shift-detail-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: var(--sc-text-secondary); }
     .sc-hos-mini { background: var(--sc-surface); border: 1px solid var(--sc-border); border-radius: 12px; padding: 12px; margin-bottom: 16px; }
@@ -817,6 +869,7 @@ export class TodayPage implements OnInit, OnDestroy {
       checkmarkCircle,
       micOutline,
       chevronForwardOutline,
+      cloudDownloadOutline,
       documentTextOutline,
     });
   }
@@ -947,6 +1000,26 @@ export class TodayPage implements OnInit, OnDestroy {
     return this.activeFlow() === 'endShift' && this.wizardStep() === this.totalWizardSteps();
   }
 
+  readonly loadingRoutes = signal(false);
+  readonly routeLoadProgress = signal(0);
+
+  private simulateRouteSync(): void {
+    this.loadingRoutes.set(true);
+    this.routeLoadProgress.set(0);
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15 + 5;
+      if (progress >= 100) {
+        progress = 100;
+        this.routeLoadProgress.set(100);
+        clearInterval(interval);
+        setTimeout(() => this.loadingRoutes.set(false), 400);
+      } else {
+        this.routeLoadProgress.set(Math.round(progress));
+      }
+    }, 200);
+  }
+
   async completeClockIn(): Promise<void> {
     this.todayState.set('during');
     this.clockInAt = new Date();
@@ -954,6 +1027,7 @@ export class TodayPage implements OnInit, OnDestroy {
     this.persistTodayState();
     this.startShiftTimer();
     this.activeFlow.set(null);
+    this.simulateRouteSync();
 
     const gps = await this.safeGetGps();
     this.queuePunch('IN', gps);
