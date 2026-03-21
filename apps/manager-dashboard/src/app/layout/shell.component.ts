@@ -112,11 +112,10 @@ interface NavSection {
 
           <div class="header-left">
             <h1 class="page-brand">ServiceCore <span class="brand-accent">Time</span></h1>
-            <button class="location-btn" type="button" title="Switch location">
+            <span class="location-btn" title="Current location">
               <i class="pi pi-map-marker"></i>
               <span class="location-label">Denver Depot</span>
-              <i class="pi pi-angle-down"></i>
-            </button>
+            </span>
             <label class="search-shell">
               <i class="pi pi-search"></i>
               <input type="search" placeholder="Search employees, routes, reports..." />
@@ -334,12 +333,12 @@ interface NavSection {
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      color: rgba(255, 255, 255, 0.48);
-      font-size: 0.74rem;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 0.82rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 0 8px;
+      letter-spacing: 0.12em;
+      padding: 4px 8px;
     }
 
     .nav-section-title {
@@ -492,7 +491,6 @@ interface NavSection {
       gap: 8px;
       font-size: var(--sc-text-sm);
       font-weight: 600;
-      cursor: pointer;
       white-space: nowrap;
     }
 

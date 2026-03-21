@@ -51,25 +51,27 @@ interface FilterOption {
           }
         </select>
 
-        <div class="sc-filter-date-range">
-          <label for="sc-filter-from">From</label>
-          <input
-            id="sc-filter-from"
-            type="date"
-            class="sc-filter-date"
-            [ngModel]="dateFrom"
-            (ngModelChange)="dateFromChange.emit($event)"
-          />
+        @if (showDates) {
+          <div class="sc-filter-date-range">
+            <label for="sc-filter-from">From</label>
+            <input
+              id="sc-filter-from"
+              type="date"
+              class="sc-filter-date"
+              [ngModel]="dateFrom"
+              (ngModelChange)="dateFromChange.emit($event)"
+            />
 
-          <label for="sc-filter-to">To</label>
-          <input
-            id="sc-filter-to"
-            type="date"
-            class="sc-filter-date"
-            [ngModel]="dateTo"
-            (ngModelChange)="dateToChange.emit($event)"
-          />
-        </div>
+            <label for="sc-filter-to">To</label>
+            <input
+              id="sc-filter-to"
+              type="date"
+              class="sc-filter-date"
+              [ngModel]="dateTo"
+              (ngModelChange)="dateToChange.emit($event)"
+            />
+          </div>
+        }
       </div>
 
       <div class="sc-filter-actions">
@@ -190,6 +192,7 @@ export class ReportFilterBarComponent {
   @Input() status: string | null = null;
   @Input() dateFrom = '';
   @Input() dateTo = '';
+  @Input() showDates = true;
   @Input() statusOptions: FilterOption[] = [];
   @Input() primaryActionLabel = 'Export';
   @Input() secondaryActionLabel = 'Columns';

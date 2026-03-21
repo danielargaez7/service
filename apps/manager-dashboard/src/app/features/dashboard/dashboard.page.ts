@@ -143,7 +143,7 @@ interface RiskBoardItem {
           <div class="panel-body">
             <div class="risk-board-list">
               @for (item of riskBoard(); track item.label) {
-                <div class="risk-board-item" [class]="'risk-' + item.tone">
+                <div class="risk-board-item" [class]="'risk-' + item.tone" (click)="navigateTo('/compliance')">
                   <span class="risk-count">{{ item.count }}</span>
                   <span class="risk-label">{{ item.label }}</span>
                 </div>
@@ -529,6 +529,7 @@ interface RiskBoardItem {
       border: 1px solid var(--sc-border, #e2e6ed);
       text-align: center;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
     }
     .risk-board-item:hover {
       transform: translateY(-2px);
@@ -713,7 +714,7 @@ interface RiskBoardItem {
       width: 36px;
       min-height: 8px;
       border-radius: 8px 8px 4px 4px;
-      background: linear-gradient(180deg, var(--sc-orange), var(--sc-orange-dark, #c2410c));
+      background: linear-gradient(180deg, #60a5fa, #3b82f6);
       transition: transform 0.15s ease;
       animation: barGrow 0.6s ease-out;
       transform-origin: bottom;
@@ -761,7 +762,7 @@ interface RiskBoardItem {
       border-radius: 50%;
       display: inline-block;
     }
-    .trend-dot.regular { background: var(--sc-orange); }
+    .trend-dot.regular { background: #3b82f6; }
     .trend-dot.ot { background: #ef4444; }
 
     .period-switch {
@@ -1063,9 +1064,9 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
         icon: 'pi-clock',
       },
       {
-        label: 'Overtime / HOS Alerts',
+        label: 'Overtime / Hours of Service Alerts',
         value: totalAlerts.toString(),
-        subtext: `${exc.otAlerts} OT + ${exc.hosWarnings} HOS`,
+        subtext: `${exc.otAlerts} OT + ${exc.hosWarnings} Hours of Service`,
         trend: totalAlerts > 0 ? 'Review required' : 'No issues',
         trendDirection: totalAlerts > 0 ? 'down' : 'neutral',
         status: totalAlerts > 0 ? 'danger' : 'warning',
@@ -1193,12 +1194,12 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => this.exceptionsData.set(res.counts),
     });
 
-    // Fetch AI insights
+    // Fetch AI insights (biweekly window for realistic per-period hours)
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const biweeklyStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const today = now.toISOString().split('T')[0];
     this.http.get<{ data: any[] }>(`${environment.apiUrl}/api/analytics/insights`, {
-      params: { periodStart: monthStart, periodEnd: today },
+      params: { periodStart: biweeklyStart, periodEnd: today },
     }).subscribe({
       next: (res) => this.dashInsights.set(res.data ?? []),
     });

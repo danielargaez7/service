@@ -193,6 +193,7 @@ const REASON_CODES: ReasonCode[] = [
         [searchTerm]="searchTerm()"
         [status]="statusFilter()"
         [statusOptions]="statusOptions"
+        [showDates]="false"
         primaryActionLabel="Export"
         (searchTermChange)="searchTerm.set($event)"
         (statusChange)="statusFilter.set($event)"

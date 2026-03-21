@@ -119,7 +119,7 @@ interface HOSStatus {
             <th>Phone</th>
             <th pSortableColumn="stateCode">State <p-sortIcon field="stateCode" /></th>
             <th>Motor Carrier</th>
-            <th>CBA</th>
+            <th>Union</th>
           </tr>
         </ng-template>
 
@@ -172,7 +172,7 @@ interface HOSStatus {
               <div class="detail-row"><span>Class</span><strong>{{ formatClass(emp.employeeClass) }}</strong></div>
               <div class="detail-row"><span>State</span><strong>{{ emp.stateCode }}</strong></div>
               <div class="detail-row"><span>Motor Carrier</span><strong>{{ emp.isMotorCarrier ? 'Yes' : 'No' }}</strong></div>
-              <div class="detail-row"><span>CBA</span><strong>{{ emp.cbAgreementId || 'None' }}</strong></div>
+              <div class="detail-row"><span>Union</span><strong>{{ emp.cbAgreementId || 'None' }}</strong></div>
               <div class="detail-row"><span>Hired</span><strong>{{ emp.createdAt | date:'mediumDate' }}</strong></div>
             </div>
 
