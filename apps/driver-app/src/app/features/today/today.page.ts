@@ -320,7 +320,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
           <ion-card class="sc-shift-card">
             <ion-card-header>
               <ion-card-subtitle>NEXT SHIFT</ion-card-subtitle>
-              <ion-card-title>{{ selectedJobType().replace('_', ' ') || 'Active Shift' }}</ion-card-title>
+              <ion-card-title>{{ selectedJobType().replace(/_/g, ' ') || 'Active Shift' }}</ion-card-title>
             </ion-card-header>
             <ion-card-content>
               <div class="shift-detail-row"><ion-icon name="time-outline"></ion-icon><span>5:30 AM - 2:30 PM</span></div>
@@ -380,7 +380,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
           <ion-card class="sc-shift-card sc-shift-active">
             <ion-card-header>
               <ion-badge color="success">CLOCKED IN</ion-badge>
-              <ion-card-title>{{ selectedJobType().replace('_', ' ') || 'Active Shift' }}</ion-card-title>
+              <ion-card-title>{{ selectedJobType().replace(/_/g, ' ') || 'Active Shift' }}</ion-card-title>
             </ion-card-header>
             <ion-card-content>
               <div class="shift-timer">
@@ -502,7 +502,7 @@ const FACILITY_OPTIONS: FacilityOption[] = [
   `,
   styles: [`
     .sc-today-content { --padding-start: 16px; --padding-end: 16px; --padding-top: 16px; }
-    .sc-shift-card { margin-bottom: 16px; }
+    .sc-shift-card { margin-bottom: 16px; margin-inline: 0; width: 100%; }
     .shift-detail-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: var(--sc-text-secondary); }
     .sc-hos-mini { background: var(--sc-surface); border: 1px solid var(--sc-border); border-radius: 12px; padding: 12px; margin-bottom: 16px; }
     .hos-bar-container { height: 8px; border-radius: 999px; background: #e5e7eb; overflow: hidden; margin: 8px 0; }
@@ -529,7 +529,9 @@ const FACILITY_OPTIONS: FacilityOption[] = [
     .shift-timer { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
     .timer-label { font-size: 0.75rem; color: var(--sc-text-secondary); }
     .timer-value { font-size: 1.8rem; font-weight: 800; }
-    .sc-clock-out-area { display: flex; flex-direction: column; gap: 12px; margin: 12px 0 20px; }
+    .sc-clock-out-area { display: flex; flex-direction: row; gap: 8px; margin: 12px 0 20px; }
+    .sc-clock-out-area .sc-clock-out-btn,
+    .sc-clock-out-area .sc-break-btn { flex: 1; }
     .sc-departure-alert {
       --background: #fff7ed;
       border: 2px solid #f97316;
@@ -817,6 +819,22 @@ export class TodayPage implements OnInit, OnDestroy {
       chevronForwardOutline,
       documentTextOutline,
     });
+  }
+
+  ionViewWillEnter(): void {
+    // Ionic tabs keep components alive — this hook fires every time the tab
+    // becomes visible.  If localStorage was cleared by logout, reset to the
+    // fresh "before" state so the driver doesn't see the old shift summary.
+    const raw = localStorage.getItem('sc_today_clock');
+    if (!raw) {
+      this.todayState.set('before');
+      this.activeFlow.set(null);
+      this.wizardStep.set(1);
+      this.selfieCaptured.set(false);
+      this.preTripChecked.set([]);
+      this.postTripChecked.set([]);
+      this.shiftSeconds.set(0);
+    }
   }
 
   ngOnInit(): void {

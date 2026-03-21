@@ -95,9 +95,17 @@ import { AuthService } from '../../core/auth.service';
   `,
   styles: [
     `
+      ion-header {
+        background: linear-gradient(135deg, #1e3a8a, #2563eb) !important;
+      }
+
       ion-toolbar {
-        --background: linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6) !important;
+        --background: transparent !important;
         --color: #fff !important;
+      }
+
+      ion-content {
+        --background: linear-gradient(135deg, #1e3a8a, #2563eb) !important;
       }
 
       .login-container {
@@ -117,13 +125,13 @@ import { AuthService } from '../../core/auth.service';
       .brand-title {
         font-size: 2rem;
         font-weight: 800;
-        color: var(--sc-primary, #1565c0);
+        color: #fff;
         margin: 0 0 4px;
       }
 
       .brand-subtitle {
         font-size: 1rem;
-        color: var(--sc-text-secondary, #757575);
+        color: rgba(255, 255, 255, 0.8);
         margin: 0;
       }
 

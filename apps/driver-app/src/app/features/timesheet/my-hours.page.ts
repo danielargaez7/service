@@ -356,7 +356,6 @@ interface TimeEntry {
 })
 export class MyHoursPage {
   readonly weekOffset = signal(0);
-  readonly entries = signal<TimeEntry[]>(this.buildMockEntries());
 
   readonly weekStart = computed(() => {
     const now = new Date();
@@ -372,6 +371,8 @@ export class MyHoursPage {
     end.setDate(end.getDate() + 6);
     return end;
   });
+
+  readonly entries = signal<TimeEntry[]>(this.buildMockEntries());
 
   readonly weekLabel = computed(() => {
     const fmt = (d: Date) =>

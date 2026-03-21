@@ -16,7 +16,10 @@ import {
   IonNote,
   IonTitle,
   IonToolbar,
+  ToastController,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { mailOutline } from 'ionicons/icons';
 
 interface Paycheck {
   periodLabel: string;
@@ -97,6 +100,13 @@ interface Paycheck {
     </ion-content>
   `,
   styles: [`
+    ion-header {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb) !important;
+    }
+    ion-toolbar {
+      --background: transparent !important;
+      --color: #fff !important;
+    }
     .pay-earned { display: flex; flex-direction: column; margin-bottom: 12px; }
     .pay-label { color: var(--sc-text-secondary); font-size: 0.8rem; }
     .pay-amount { font-size: 2rem; font-weight: 800; color: var(--sc-text); }
@@ -107,6 +117,10 @@ interface Paycheck {
   `],
 })
 export class PayPage {
+  constructor(private toastCtrl: ToastController) {
+    addIcons({ mailOutline });
+  }
+
   currentEarnings = 2184.25;
   regularHours = 74;
   regularPay = 2072;
@@ -120,8 +134,15 @@ export class PayPage {
     { periodLabel: 'Jan 16 - Jan 31', hours: 81.2, paidDate: '2026-02-05', netPay: 2375.63 },
   ];
 
-  openEWA(): void {
-    // Placeholder for earned wage access flow
+  async openEWA(): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      message: 'Request submitted! A confirmation email has been sent to your inbox.',
+      duration: 3000,
+      position: 'top',
+      color: 'success',
+      icon: 'mail-outline',
+    });
+    await toast.present();
   }
 
   openPaystub(_check: Paycheck): void {
