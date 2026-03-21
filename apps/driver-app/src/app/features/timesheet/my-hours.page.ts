@@ -70,9 +70,11 @@ interface TimeEntry {
       </ion-toolbar>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button (click)="prevWeek()">
-            <ion-icon slot="icon-only" name="chevron-back"></ion-icon>
-          </ion-button>
+          @if (canGoBack()) {
+            <ion-button (click)="prevWeek()">
+              <ion-icon slot="icon-only" name="chevron-back"></ion-icon>
+            </ion-button>
+          }
         </ion-buttons>
         <ion-title size="small" class="week-label">{{ weekLabel() }}</ion-title>
         <ion-buttons slot="end">
@@ -92,7 +94,7 @@ interface TimeEntry {
         <div>
           <p class="eyebrow">Week Snapshot</p>
           <h1>{{ weeklyTotal().toFixed(1) }} hrs</h1>
-          <p>{{ approvedHours().toFixed(1) }} approved · {{ pendingHours().toFixed(1) }} pending review</p>
+          <p>{{ weekSummaryText() }}</p>
         </div>
         @if (overtimeHours() > 0) {
           <div class="hero-pill overtime">{{ overtimeHours().toFixed(1) }} OT</div>
@@ -172,6 +174,13 @@ interface TimeEntry {
   `,
   styles: [
     `
+      ion-header {
+        background: linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6) !important;
+      }
+      ion-toolbar {
+        --background: transparent !important;
+        --color: #fff !important;
+      }
       .hours-content {
         --background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
       }
@@ -355,6 +364,7 @@ interface TimeEntry {
   ],
 })
 export class MyHoursPage {
+  private readonly earliestWeek = new Date(2026, 2, 2); // March 2, 2026
   readonly weekOffset = signal(0);
 
   readonly weekStart = computed(() => {
@@ -435,6 +445,28 @@ export class MyHoursPage {
     this.entries().filter((entry) => entry.status === 'FLAGGED')
   );
 
+  readonly canGoBack = computed(() => {
+    const start = this.weekStart();
+    return start > this.earliestWeek;
+  });
+
+  readonly isPastWeek = computed(() => {
+    const now = new Date();
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setDate(currentWeekStart.getDate() - ((currentWeekStart.getDay() + 6) % 7));
+    currentWeekStart.setHours(0, 0, 0, 0);
+    return this.weekStart() < currentWeekStart;
+  });
+
+  readonly weekSummaryText = computed(() => {
+    const approved = this.approvedHours().toFixed(1);
+    const pending = this.pendingHours();
+    if (pending === 0) {
+      return `${approved} approved`;
+    }
+    return `${approved} approved · ${pending.toFixed(1)} pending review`;
+  });
+
   constructor() {
     addIcons({
       cashOutline,
@@ -448,6 +480,16 @@ export class MyHoursPage {
   }
 
   prevWeek(): void {
+    // Check if going back would go before the earliest allowed week
+    const testOffset = this.weekOffset() - 1;
+    const now = new Date();
+    const day = now.getDay();
+    const testMonday = new Date(now);
+    testMonday.setDate(now.getDate() - ((day + 6) % 7) + testOffset * 7);
+    testMonday.setHours(0, 0, 0, 0);
+    if (testMonday < this.earliestWeek) {
+      return;
+    }
     this.weekOffset.update((value) => value - 1);
     this.entries.set(this.buildMockEntries());
   }
@@ -490,15 +532,26 @@ export class MyHoursPage {
     const fri = new Date(start);
     fri.setDate(start.getDate() + 4);
 
-    return [
+    // Determine if this is a past week
+    const now = new Date();
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setDate(currentWeekStart.getDate() - ((currentWeekStart.getDay() + 6) % 7));
+    currentWeekStart.setHours(0, 0, 0, 0);
+    const isPastWeek = start < currentWeekStart;
+
+    // Variation factor for past weeks so each week looks slightly different
+    const weekSeed = start.getTime();
+    const variation = isPastWeek ? 0.9 + (weekSeed % 17) / 85 : 1; // 0.9 to 1.1 for past weeks
+
+    const baseEntries: TimeEntry[] = [
       {
         id: '1',
         date: toDateStr(mon),
         clockIn: '6:00 AM',
         clockOut: '2:35 PM',
-        regularHours: 8,
-        overtimeHours: 0.4,
-        estimatedGross: 252,
+        regularHours: +(8 * variation).toFixed(1),
+        overtimeHours: +(0.4 * variation).toFixed(1),
+        estimatedGross: Math.round(252 * variation),
         jobType: 'Residential pickup',
         status: 'APPROVED',
       },
@@ -507,9 +560,9 @@ export class MyHoursPage {
         date: toDateStr(tue),
         clockIn: '5:42 AM',
         clockOut: '3:08 PM',
-        regularHours: 8,
-        overtimeHours: 1.4,
-        estimatedGross: 297,
+        regularHours: +(8 * variation).toFixed(1),
+        overtimeHours: +(1.4 * variation).toFixed(1),
+        estimatedGross: Math.round(297 * variation),
         jobType: 'Septic route',
         status: 'APPROVED',
       },
@@ -518,35 +571,37 @@ export class MyHoursPage {
         date: toDateStr(wed),
         clockIn: '6:11 AM',
         clockOut: '2:59 PM',
-        regularHours: 8,
-        overtimeHours: 0.7,
-        estimatedGross: 261,
+        regularHours: +(8 * variation).toFixed(1),
+        overtimeHours: +(0.7 * variation).toFixed(1),
+        estimatedGross: Math.round(261 * variation),
         jobType: 'Commercial pickup',
-        status: 'PENDING',
+        status: isPastWeek ? 'APPROVED' : 'PENDING',
       },
       {
         id: '4',
         date: toDateStr(thu),
         clockIn: '6:00 AM',
         clockOut: '4:18 PM',
-        regularHours: 8,
-        overtimeHours: 2.0,
-        estimatedGross: 324,
+        regularHours: +(8 * variation).toFixed(1),
+        overtimeHours: +(2.0 * variation).toFixed(1),
+        estimatedGross: Math.round(324 * variation),
         jobType: 'Roll-off swap',
-        status: 'FLAGGED',
-        correctionNote: 'Manager flagged this shift: missing 30-minute lunch confirmation between Stop 14 and Stop 15.',
+        status: isPastWeek ? 'APPROVED' : 'FLAGGED',
+        correctionNote: isPastWeek ? undefined : 'Manager flagged this shift: missing 30-minute lunch confirmation between Stop 14 and Stop 15.',
       },
       {
         id: '5',
         date: toDateStr(fri),
         clockIn: '6:03 AM',
-        clockOut: null,
-        regularHours: 6.2,
+        clockOut: isPastWeek ? '2:15 PM' : null,
+        regularHours: isPastWeek ? +(7.8 * variation).toFixed(1) : 6.2,
         overtimeHours: 0,
-        estimatedGross: 186,
+        estimatedGross: isPastWeek ? Math.round(234 * variation) : 186,
         jobType: 'Residential pickup',
-        status: 'PENDING',
+        status: isPastWeek ? 'APPROVED' : 'PENDING',
       },
     ];
+
+    return baseEntries;
   }
 }

@@ -320,9 +320,13 @@ const ROUTE_STOPS: RouteStop[] = [
 
       .dispatch-actions {
         display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
+        flex-direction: row;
+        gap: 8px;
         margin-top: 16px;
+      }
+
+      .dispatch-actions ion-button {
+        flex: 1;
       }
 
       ion-segment {
