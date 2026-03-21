@@ -527,6 +527,7 @@ interface NavSection {
       display: flex;
       align-items: center;
       gap: 16px;
+      flex-shrink: 0;
     }
 
     .notification-anchor {
@@ -821,6 +822,25 @@ interface NavSection {
     .chat-fab.chat-open {
       background: #64748b;
       box-shadow: 0 4px 16px rgba(100, 116, 139, 0.4);
+    }
+
+    @media (max-width: 1100px) {
+      .search-shell {
+        display: none;
+      }
+
+      .location-label {
+        display: none;
+      }
+
+      .user-info .user-name,
+      .user-info .user-role {
+        display: none;
+      }
+
+      .logout-btn span {
+        display: none;
+      }
     }
 
     @media (max-width: 768px) {

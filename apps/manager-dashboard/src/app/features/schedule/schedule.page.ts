@@ -170,7 +170,7 @@ const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
           <div class="form-field">
             <label>Status</label>
-            <p-select [options]="shiftStatusOptions" [(ngModel)]="editShiftStatus" (ngModelChange)="onEditStatusChange()"></p-select>
+            <p-select [options]="shiftStatusOptions" [(ngModel)]="editShiftStatus" (ngModelChange)="onEditStatusChange()" appendTo="body"></p-select>
           </div>
 
           @if (editShiftStatus === 'PARTIAL') {
@@ -659,8 +659,8 @@ const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
     @media print {
       .header-actions, .schedule-footer { display: none !important; }
-      .schedule-page { padding: 0 !important; }
-      .schedule-grid { font-size: 10px; }
+      .schedule-page { padding: 0 !important; transform: scale(0.65); transform-origin: top left; }
+      .schedule-grid { font-size: 7px; }
     }
   `],
 })
@@ -992,7 +992,7 @@ export class SchedulePage {
   }
 
   constructor(private readonly alerts: ManagerAlertsService) {
-    this.scheduleRows.set(this.initScheduleRows());
+    this.scheduleRows.set(this.initScheduleRows().sort((a, b) => a.name.localeCompare(b.name)));
   }
 
   changeWeek(delta: number): void {
@@ -1119,6 +1119,22 @@ export class SchedulePage {
   }
 
   saveShiftEdit(): void {
+    if (this.editShiftStatus === 'PARTIAL') {
+      if (this.splitStart1 && this.splitEnd1 && this.splitStart1 >= this.splitEnd1) {
+        this.alerts.high('Invalid shift times', 'Part 1 start time cannot be at or after end time.');
+        return;
+      }
+      if (this.splitStart2 && this.splitEnd2 && this.splitStart2 >= this.splitEnd2) {
+        this.alerts.high('Invalid shift times', 'Part 2 start time cannot be at or after end time.');
+        return;
+      }
+    } else {
+      if (this.editShiftStart && this.editShiftEnd && this.editShiftStart >= this.editShiftEnd) {
+        this.alerts.high('Invalid shift times', 'Start time cannot be at or after end time.');
+        return;
+      }
+    }
+
     const rowId = this.editShiftRowId;
     const day = this.editShiftDay;
 
